@@ -1,0 +1,32 @@
+{
+  "name": "dmg-2025",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "build": "run-s wasm-pack:release tsc vite:build",
+    "dev": "run-s wasm-pack:dev vite:dev",
+    "tsc": "tsc",
+    "check": "svelte-check --tsconfig ./tsconfig.app.json && tsc -p tsconfig.node.json",
+    "vite:build": "vite build",
+    "vite:dev": "vite -c vite.config.dev.ts",
+    "vite:preview": "vite preview",
+    "wasm-pack:dev": "wasm-pack build --dev",
+    "wasm-pack:release": "wasm-pack build"
+  },
+  "devDependencies": {
+    "@sveltejs/vite-plugin-svelte": "^6.2.0",
+    "@tsconfig/svelte": "^5.0.5",
+    "npm-run-all": "^4.1.5",
+    "svelte": "^5.39.4",
+    "svelte-check": "^4.3.1",
+    "typescript": "~5.8.3",
+    "vite": "^7.1.7",
+    "vite-plugin-top-level-await": "^1.6.0",
+    "vite-plugin-wasm": "^3.5.0",
+    "vite-plugin-wasm-pack-watcher": "^1.0.1"
+  },
+  "dependencies": {
+    "DMG-2025": "file:pkg"
+  }
+}
