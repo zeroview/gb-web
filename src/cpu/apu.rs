@@ -621,12 +621,10 @@ impl APU {
         self.buffer.push(right_channel * 0.1);
     }
 
-    /// Called from outside:
-    /// returns audio buffer for playback, and empties it
-    pub fn receive_buffer(&mut self) -> Vec<f32> {
-        let buf = self.buffer.clone();
-        self.buffer = vec![];
-        buf
+    /// Returns audio buffer for outside playback.
+    /// Must be emptied by the user after use!
+    pub fn receive_buffer(&mut self) -> &mut Vec<f32> {
+        &mut self.buffer
     }
 }
 

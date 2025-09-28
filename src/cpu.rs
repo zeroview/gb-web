@@ -33,27 +33,24 @@ pub struct CPU {
     pub input: InputReg,
     pub istate: InterruptState,
     pub halt: bool,
-    pub profiling: bool,
 }
 
 impl CPU {
-    pub fn new(rom_file: Vec<u8>, options: &Options) -> Self {
+    pub fn new(rom_file: Vec<u8>, audio_sample_rate: u32) -> Self {
         Self {
             reg: Registers::new(),
             ppu: PPU::new(),
-            apu: APU::new(options.audio_sample_rate),
+            apu: APU::new(audio_sample_rate),
             mem: Memory::new(rom_file),
             timer: Timer::new(),
             input: InputReg::new(),
             istate: InterruptState::new(),
             halt: false,
-            profiling: false,
         }
     }
 
     /// Emulates the rest of the Game Boy (apart from instructions) for given amount of M-cycles
     pub fn cycle(&mut self, cycles: u8) {
-        puffin::profile_function_if!(self.profiling);
         // Rest of the system runs on T-cycles, which is 1/4 of an M-cycle
         for _ in 0..(4 * cycles) {
             // Check if OAM DMA should be started
@@ -62,13 +59,11 @@ impl CPU {
             }
             // Cycle PPU
             {
-                puffin::profile_scope_if!(self.profiling, "PPU");
                 self.ppu.cycle();
                 self.request_interrupt(self.ppu.interrupt_request);
             }
             // Cycle timer
             {
-                puffin::profile_scope_if!(self.profiling, "Timer");
                 self.timer.cycle();
                 if self.timer.request_interrupt {
                     self.request_interrupt(InterruptFlag::TIMER);
@@ -77,7 +72,6 @@ impl CPU {
 
             // Cycle APU based on timer state
             {
-                puffin::profile_scope_if!(self.profiling, "APU");
                 self.apu.cycle(self.timer.div);
             }
         }
@@ -105,7 +99,6 @@ impl CPU {
         let opcode = self.read(self.reg.pc);
         let mut increment_pc = true;
         {
-            puffin::profile_scope_if!(self.profiling, "Instruction", format!("{:#06x}", opcode));
             match opcode {
                 0x00..=0x3F => {
                     // Mask out the first nibble for easier pattern matching

@@ -1,6 +1,7 @@
 <script lang="ts">
   import { run } from "DMG-2025";
-  run();
 </script>
 
-<main></main>
+<main>
+  <button on:click={run}> Run emulator </button>
+</main>

@@ -1,4 +1,4 @@
-pub use std::sync::Arc;
+pub use std::sync::{Arc, Mutex};
 pub use wasm_bindgen::prelude::*;
 pub use winit::{
     application::ApplicationHandler,
@@ -7,6 +7,9 @@ pub use winit::{
     keyboard::{KeyCode, PhysicalKey},
     window::Window,
 };
+
+mod audio;
+use audio::*;
 mod renderer;
 use renderer::*;
 mod cpu;
@@ -39,17 +42,19 @@ pub struct App {
     renderer: Option<Renderer>,
     input_state: InputFlag,
     cpu: CPU,
+    audio: AudioHandler,
 }
 
 impl App {
     pub fn new(event_loop: &EventLoop<Renderer>, rom: Vec<u8>) -> Self {
         let options = Options::default();
-        let cpu = CPU::new(rom, &options);
-        let proxy = Some(event_loop.create_proxy());
+        let audio = AudioHandler::init();
+        let cpu = CPU::new(rom, audio.sample_rate);
         Self {
-            proxy,
+            proxy: Some(event_loop.create_proxy()),
             options,
             renderer: None,
+            audio,
             input_state: InputFlag::from_bits_truncate(0xFF),
             cpu,
         }
@@ -96,7 +101,11 @@ impl ApplicationHandler<Renderer> for App {
         if self.renderer.is_none() {
             return;
         }
-        let (renderer, cpu) = (self.renderer.as_mut().unwrap(), &mut self.cpu);
+        let (renderer, audio, cpu) = (
+            self.renderer.as_mut().unwrap(),
+            &mut self.audio,
+            &mut self.cpu,
+        );
 
         match event {
             WindowEvent::CloseRequested => event_loop.exit(),
@@ -109,6 +118,8 @@ impl ApplicationHandler<Renderer> for App {
                         break;
                     }
                 }
+
+                audio.update_audio(cpu.apu.receive_buffer());
                 renderer.update_display(&cpu.ppu.display);
 
                 match renderer.render() {
