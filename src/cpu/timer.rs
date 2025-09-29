@@ -81,10 +81,6 @@ impl Timer {
 }
 
 impl MemoryAccess for Timer {
-    fn get_range(&self) -> Vec<RangeInclusive<u16>> {
-        vec![0xFF04..=0xFF07]
-    }
-
     fn mem_read(&self, address: u16) -> u8 {
         match address {
             0xFF04 => (self.div >> 8) as u8,

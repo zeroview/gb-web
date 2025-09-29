@@ -32,7 +32,7 @@ impl AudioHandler {
         let sample_capacity =
             (((AUDIO_DELAY_MS / 1000.0) * sample_rate as f32) as usize) * channels;
         let ring = HeapRb::<f32>::new(sample_capacity);
-        let (mut producer, mut consumer) = ring.split();
+        let (producer, consumer) = ring.split();
 
         let stream = match config.sample_format() {
             cpal::SampleFormat::F32 => {

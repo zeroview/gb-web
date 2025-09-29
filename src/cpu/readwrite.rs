@@ -2,8 +2,6 @@ use super::*;
 
 /// Trait implemented by objects whose registers can be accessed from the address bus
 pub trait MemoryAccess {
-    /// Returns vec of memory address ranges supported by this object
-    fn get_range(&self) -> Vec<RangeInclusive<u16>>;
     /// Returns value from given memory address
     fn mem_read(&self, address: u16) -> u8;
     /// Writes given value to given memory address
@@ -13,23 +11,21 @@ pub trait MemoryAccess {
 impl CPU {
     /// Reads from given memory address
     pub fn read(&self, address: u16) -> u8 {
-        let targets: Vec<&dyn MemoryAccess> = vec![
-            &self.mem,
-            &self.ppu,
-            &self.apu,
-            &self.input,
-            &self.timer,
-            &self.istate,
-        ];
-        for target in targets {
-            for range in target.get_range() {
-                if range.contains(&address) {
-                    return target.mem_read(address);
-                }
-            }
+        match address {
+            // ROM, external and work RAM, high RAM
+            0x0000..=0x7FFF | 0xA000..=0xDFFF | 0xFF80..=0xFFFE => self.mem.mem_read(address),
+            // VRAM, OAM, LCD I/O
+            0x8000..=0x9FFF | 0xFE00..=0xFE9F | 0xFF40..=0xFF4B => self.ppu.mem_read(address),
+            // Audio I/O registers
+            0xFF10..=0xFF3F => self.apu.mem_read(address),
+            // Input register
+            0xFF00 => self.input.mem_read(address),
+            // Timer control
+            0xFF04..=0xFF07 => self.timer.mem_read(address),
+            // Interrupt control (IF and IE)
+            0xFF0F | 0xFFFF => self.istate.mem_read(address),
+            _ => 0xFF,
         }
-        // eprintln!("No target found for reading from address {:#06X}", address);
-        0xFF
     }
 
     /// Reads 16-bit value from given memory address
@@ -39,22 +35,25 @@ impl CPU {
 
     /// Writes to given memory address
     pub fn write(&mut self, address: u16, value: u8) {
-        let targets: Vec<&mut dyn MemoryAccess> = vec![
-            &mut self.mem,
-            &mut self.ppu,
-            &mut self.apu,
-            &mut self.input,
-            &mut self.timer,
-            &mut self.istate,
-        ];
-        for target in targets {
-            for range in target.get_range() {
-                if range.contains(&address) {
-                    return target.mem_write(address, value);
-                }
+        match address {
+            // ROM, external and work RAM, high RAM
+            0x0000..=0x7FFF | 0xA000..=0xDFFF | 0xFF80..=0xFFFE => {
+                self.mem.mem_write(address, value)
             }
+            // VRAM, OAM, LCD I/O
+            0x8000..=0x9FFF | 0xFE00..=0xFE9F | 0xFF40..=0xFF4B => {
+                self.ppu.mem_write(address, value)
+            }
+            // Audio I/O registers
+            0xFF10..=0xFF3F => self.apu.mem_write(address, value),
+            // Input register
+            0xFF00 => self.input.mem_write(address, value),
+            // Timer control
+            0xFF04..=0xFF07 => self.timer.mem_write(address, value),
+            // Interrupt control
+            0xFF0F | 0xFFFF => self.istate.mem_write(address, value),
+            _ => {}
         }
-        // eprintln!("No target found for writing to address {:#06X}", address);
     }
 
     /// Returns the immediate 8-bit operand from memory.
@@ -92,7 +91,7 @@ impl CPU {
         self.write(self.reg.sp, bytes[0]);
     }
 
-    /// Starts OAM DMA transfer, which copies memory from given source address to OAM
+    /// Performs an OAM DMA transfer, which copies memory from given source address to OAM
     pub fn oam_dma(&mut self, address: u8) {
         let source_address = (address as u16) * 0x100;
         for sprite_index in 0..40 {

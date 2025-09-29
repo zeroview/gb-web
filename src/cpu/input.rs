@@ -51,10 +51,6 @@ impl InputReg {
 }
 
 impl MemoryAccess for InputReg {
-    fn get_range(&self) -> Vec<RangeInclusive<u16>> {
-        vec![0xFF00..=0xFF00]
-    }
-
     fn mem_read(&self, _: u16) -> u8 {
         let select_bits = ((self.select_button as u8) << 5) | ((self.select_dpad as u8) << 4);
 

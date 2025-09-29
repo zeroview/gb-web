@@ -58,22 +58,15 @@ impl CPU {
                 self.oam_dma(self.ppu.oam_dma_source);
             }
             // Cycle PPU
-            {
-                self.ppu.cycle();
-                self.request_interrupt(self.ppu.interrupt_request);
-            }
+            self.ppu.cycle();
+            self.request_interrupt(self.ppu.interrupt_request);
             // Cycle timer
-            {
-                self.timer.cycle();
-                if self.timer.request_interrupt {
-                    self.request_interrupt(InterruptFlag::TIMER);
-                }
+            self.timer.cycle();
+            if self.timer.request_interrupt {
+                self.request_interrupt(InterruptFlag::TIMER);
             }
-
             // Cycle APU based on timer state
-            {
-                self.apu.cycle(self.timer.div);
-            }
+            self.apu.cycle(self.timer.div);
         }
     }
 

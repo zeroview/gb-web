@@ -34,10 +34,6 @@ impl InterruptState {
 }
 
 impl MemoryAccess for InterruptState {
-    fn get_range(&self) -> Vec<RangeInclusive<u16>> {
-        vec![0xFF0F..=0xFF0F, 0xFFFF..=0xFFFF]
-    }
-
     fn mem_read(&self, address: u16) -> u8 {
         match address {
             0xFF0F => self.iflag.bits(),

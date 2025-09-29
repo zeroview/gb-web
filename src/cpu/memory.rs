@@ -97,10 +97,6 @@ impl Memory {
 }
 
 impl MemoryAccess for Memory {
-    fn get_range(&self) -> Vec<RangeInclusive<u16>> {
-        // ROM, external and work RAM, high RAM
-        vec![0x0000..=0x7FFF, 0xA000..=0xDFFF, 0xFF80..=0xFFFE]
-    }
     fn mem_read(&self, address: u16) -> u8 {
         match address {
             0x0000..=0x7FFF | 0xA000..=0xBFFF => self.mbc.read(address),

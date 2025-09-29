@@ -629,11 +629,6 @@ impl APU {
 }
 
 impl MemoryAccess for APU {
-    fn get_range(&self) -> Vec<RangeInclusive<u16>> {
-        // Audio I/O registers
-        vec![0xFF10..=0xFF3F]
-    }
-
     fn mem_read(&self, address: u16) -> u8 {
         match address {
             0xFF10..=0xFF14 => self.square_channel_1.read_register(address - 0xFF10),
