@@ -1,7 +1,7 @@
 use super::*;
 use cpal::{
     traits::{DeviceTrait, HostTrait, StreamTrait},
-    FromSample, Sample, SizedSample, Stream,
+    FromSample, SizedSample, Stream,
 };
 use ringbuf::{
     storage::Heap,
