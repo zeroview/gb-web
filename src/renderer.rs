@@ -1,7 +1,7 @@
 use wgpu::util::DeviceExt;
 
 use super::*;
-use crate::cpu::ppu::{DisplayBuffer, DISPLAY_BUFFER_SIZE};
+use crate::cpu::{DisplayBuffer, DISPLAY_BUFFER_SIZE};
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]

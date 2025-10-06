@@ -1,4 +1,5 @@
 use super::*;
+use double_buffer::DoubleBuffer;
 
 #[derive(Deserialize, Serialize, Clone, Copy, PartialEq)]
 pub struct PPUControl(u8);
@@ -109,8 +110,8 @@ pub const DISPLAY_BUFFER_SIZE: usize = (2 * 160 * 144) / 32;
 /// pixels.
 pub type DisplayBuffer = [u32; DISPLAY_BUFFER_SIZE];
 
-fn empty_display() -> DisplayBuffer {
-    [0; DISPLAY_BUFFER_SIZE]
+fn empty_display() -> DoubleBuffer<DisplayBuffer> {
+    DoubleBuffer::new([0; DISPLAY_BUFFER_SIZE], [0; DISPLAY_BUFFER_SIZE])
 }
 
 /// The graphics processing unit
@@ -119,7 +120,7 @@ fn empty_display() -> DisplayBuffer {
 pub struct PPU {
     #[serde(skip)]
     #[serde(default = "empty_display")]
-    pub display: DisplayBuffer,
+    pub display: DoubleBuffer<DisplayBuffer>,
     #[serde(with = "BigArray")]
     pub vram: [u8; 0x2000],
     pub oam: OAM,
@@ -194,6 +195,7 @@ impl PPU {
                 144 => {
                     self.interrupt_request.insert(InterruptFlag::VBLANK);
                     self.update_mode(1);
+                    self.display.swap();
                 }
                 153 => {
                     self.ly = 0;

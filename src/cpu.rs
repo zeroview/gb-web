@@ -2,14 +2,14 @@ use bitflags::bitflags;
 use serde::{Deserialize, Serialize};
 use serde_big_array::BigArray;
 
-pub mod apu;
-pub mod input;
-pub mod interrupts;
-pub mod memory;
-pub mod ppu;
-pub mod readwrite;
-pub mod registers;
-pub mod timer;
+mod apu;
+mod input;
+mod interrupts;
+mod memory;
+mod ppu;
+mod readwrite;
+mod registers;
+mod timer;
 use apu::*;
 use input::*;
 use interrupts::*;
@@ -19,28 +19,32 @@ use readwrite::*;
 use registers::*;
 use timer::*;
 
+pub use apu::{AudioBufferConsumer, AudioConfig};
+pub use input::InputFlag;
+pub use ppu::{DisplayBuffer, DISPLAY_BUFFER_SIZE};
+
 /// The main processing unit
 #[allow(clippy::upper_case_acronyms)]
 #[derive(Deserialize, Serialize)]
 pub struct CPU {
-    pub reg: Registers,
-    pub mem: Memory,
-    pub ppu: PPU,
-    pub apu: APU,
-    pub timer: Timer,
-    pub input: InputReg,
-    pub istate: InterruptState,
-    pub halt: bool,
+    reg: Registers,
+    mem: Memory,
+    ppu: PPU,
+    apu: APU,
+    timer: Timer,
+    input: InputReg,
+    istate: InterruptState,
+    halt: bool,
     pub frame_counter: u8,
     cycle_counter: u32,
 }
 
 impl CPU {
-    pub fn new(rom_file: Vec<u8>, audio_sample_rate: u32) -> Self {
+    pub fn new(rom_file: Vec<u8>) -> Self {
         Self {
             reg: Registers::new(),
             ppu: PPU::new(),
-            apu: APU::new(audio_sample_rate),
+            apu: APU::new(),
             mem: Memory::new(rom_file),
             timer: Timer::new(),
             input: InputReg::new(),
@@ -49,6 +53,16 @@ impl CPU {
             frame_counter: 0,
             cycle_counter: 0,
         }
+    }
+
+    /// Initializes a ring buffer for audio playback and returns its consumer
+    pub fn init_audio_buffer(&mut self, config: &AudioConfig) -> AudioBufferConsumer {
+        self.apu.init_buffer(config)
+    }
+
+    /// Returns the latest fully drawn display buffer for rendering
+    pub fn get_display_buffer(&mut self) -> &DisplayBuffer {
+        &self.ppu.display
     }
 
     const MS_PER_M_CYCLE: f32 = 0.0009536743;

@@ -484,21 +484,53 @@ bitflags! {
     }
 }
 
+pub struct AudioConfig {
+    pub sample_rate: u32,
+    pub channels: usize,
+    pub buffer_capacity_ms: f32,
+}
+
+impl Default for AudioConfig {
+    fn default() -> Self {
+        Self {
+            sample_rate: 44100,
+            channels: 2,
+            buffer_capacity_ms: 100.0,
+        }
+    }
+}
+
+use ringbuf::{
+    storage::Heap,
+    traits::{Producer, Split},
+    wrap::caching::Caching,
+    HeapRb, SharedRb,
+};
+use std::sync::Arc;
+
+pub type AudioBufferProducer = Caching<Arc<SharedRb<Heap<f32>>>, true, false>;
+pub type AudioBufferConsumer = Caching<Arc<SharedRb<Heap<f32>>>, false, true>;
+
 /// Audio processing unit
 #[allow(clippy::upper_case_acronyms)]
 #[derive(Deserialize, Serialize)]
 pub struct APU {
-    pub on: bool,
     #[serde(skip)]
-    pub buffer: Vec<f32>,
-    pub sample_delay_counter: u32,
+    buffer_producer: Option<AudioBufferProducer>,
+    #[serde(skip)]
     pub sample_delay: u32,
+    #[serde(skip)]
+    pub channels: usize,
+
+    pub on: bool,
+    pub sample_delay_counter: u32,
     pub period_delay_counter: u8,
     pub div_apu: u8,
     pub last_div_bit: bool,
     pub pan_options: PanRegister,
     pub left_volume: u8,
     pub right_volume: u8,
+
     pub square_channel_1: SquareChannel,
     pub square_channel_2: SquareChannel,
     pub wave_channel: WaveChannel,
@@ -506,12 +538,13 @@ pub struct APU {
 }
 
 impl APU {
-    pub fn new(sample_rate: u32) -> Self {
+    pub fn new() -> Self {
         Self {
+            buffer_producer: None,
+            sample_delay: 0,
+            channels: 0,
+
             on: true,
-            buffer: vec![],
-            sample_delay: 4194304 / sample_rate,
-            // sample_delay: 0,
             sample_delay_counter: 0,
             period_delay_counter: 0,
             div_apu: 0,
@@ -525,6 +558,19 @@ impl APU {
             wave_channel: WaveChannel::new(),
             noise_channel: NoiseChannel::new(),
         }
+    }
+
+    pub fn init_buffer(&mut self, config: &AudioConfig) -> AudioBufferConsumer {
+        let sample_capacity = (((config.buffer_capacity_ms / 1000.0) * config.sample_rate as f32)
+            as usize)
+            * config.channels;
+        let ring = HeapRb::<f32>::new(sample_capacity);
+        let (producer, consumer) = ring.split();
+
+        self.sample_delay = 4194304 / config.sample_rate;
+        self.channels = config.channels;
+        self.buffer_producer = Some(producer);
+        consumer
     }
 
     pub fn cycle(&mut self, timer_div: u16) {
@@ -573,58 +619,67 @@ impl APU {
             self.sample_delay_counter += 1;
             return;
         }
-        self.sample_delay_counter = 0;
 
-        // If APU is turned off, just push silence to the buffer
-        if !self.on {
-            self.buffer.push(0.0);
-            self.buffer.push(0.0);
-            return;
-        }
+        if let Some(buffer) = &mut self.buffer_producer {
+            self.sample_delay_counter = 0;
 
-        let ch1 = self.square_channel_1.get_sample();
-        let ch2 = self.square_channel_2.get_sample();
-        let ch3 = self.wave_channel.get_sample();
-        let ch4 = self.noise_channel.get_sample();
+            // If APU is turned off, just push silence to the buffer
+            if !self.on {
+                for _ in 0..self.channels {
+                    let _ = buffer.try_push(0.0);
+                }
+                return;
+            }
 
-        let mut left_channel = 0f32;
-        if self.pan_options.intersects(PanRegister::CH1_LEFT) {
-            left_channel += ch1;
-        }
-        if self.pan_options.intersects(PanRegister::CH2_LEFT) {
-            left_channel += ch2;
-        }
-        if self.pan_options.intersects(PanRegister::CH3_LEFT) {
-            left_channel += ch3;
-        }
-        if self.pan_options.intersects(PanRegister::CH4_LEFT) {
-            left_channel += ch4;
-        }
+            // Get samples from all channels
+            let ch1 = self.square_channel_1.get_sample();
+            let ch2 = self.square_channel_2.get_sample();
+            let ch3 = self.wave_channel.get_sample();
+            let ch4 = self.noise_channel.get_sample();
 
-        let mut right_channel = 0f32;
-        if self.pan_options.intersects(PanRegister::CH1_RIGHT) {
-            right_channel += ch1;
-        }
-        if self.pan_options.intersects(PanRegister::CH2_RIGHT) {
-            right_channel += ch2;
-        }
-        if self.pan_options.intersects(PanRegister::CH3_RIGHT) {
-            right_channel += ch3;
-        }
-        if self.pan_options.intersects(PanRegister::CH4_RIGHT) {
-            right_channel += ch4;
-        }
+            // Calculate left and right output
+            let mut left_sample = 0f32;
+            if self.pan_options.intersects(PanRegister::CH1_LEFT) {
+                left_sample += ch1;
+            }
+            if self.pan_options.intersects(PanRegister::CH2_LEFT) {
+                left_sample += ch2;
+            }
+            if self.pan_options.intersects(PanRegister::CH3_LEFT) {
+                left_sample += ch3;
+            }
+            if self.pan_options.intersects(PanRegister::CH4_LEFT) {
+                left_sample += ch4;
+            }
+            left_sample *= (self.left_volume as f32) / 8.0;
 
-        left_channel *= (self.left_volume as f32) / 8.0;
-        self.buffer.push(left_channel * 0.1);
-        right_channel *= (self.right_volume as f32) / 8.0;
-        self.buffer.push(right_channel * 0.1);
-    }
+            let mut right_sample = 0f32;
+            if self.pan_options.intersects(PanRegister::CH1_RIGHT) {
+                right_sample += ch1;
+            }
+            if self.pan_options.intersects(PanRegister::CH2_RIGHT) {
+                right_sample += ch2;
+            }
+            if self.pan_options.intersects(PanRegister::CH3_RIGHT) {
+                right_sample += ch3;
+            }
+            if self.pan_options.intersects(PanRegister::CH4_RIGHT) {
+                right_sample += ch4;
+            }
+            right_sample *= (self.right_volume as f32) / 8.0;
 
-    /// Returns audio buffer for outside playback.
-    /// Must be emptied by the user after use!
-    pub fn receive_buffer(&mut self) -> &mut Vec<f32> {
-        &mut self.buffer
+            // If output has two channels, send sound as stereo
+            if self.channels == 2 {
+                let _ = buffer.try_push(left_sample * 0.1);
+                let _ = buffer.try_push(right_sample * 0.1);
+            }
+            // Otherwise treat sound as mono, regardless of amount of channels
+            else {
+                for _ in 0..self.channels {
+                    let _ = buffer.try_push((left_sample + right_sample) / 2.0);
+                }
+            }
+        }
     }
 }
 

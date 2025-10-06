@@ -13,7 +13,6 @@ use audio::*;
 mod renderer;
 use renderer::*;
 mod cpu;
-use cpu::input::InputFlag;
 use cpu::*;
 mod options;
 use options::*;
@@ -78,9 +77,13 @@ pub struct App {
 
 impl App {
     pub fn new(event_loop: &EventLoop<UserEvent>, rom: Vec<u8>) -> Self {
+        let mut cpu = CPU::new(rom);
+
+        let audio_config = AudioHandler::get_audio_config();
+        let audio_consumer = cpu.init_audio_buffer(&audio_config);
+        let audio = AudioHandler::init(audio_consumer);
+
         let options = Options::default();
-        let audio = AudioHandler::init();
-        let cpu = CPU::new(rom, audio.sample_rate);
         Self {
             proxy: Some(event_loop.create_proxy()),
             options,
@@ -140,7 +143,7 @@ impl ApplicationHandler<UserEvent> for App {
             WindowEvent::Resized(size) => renderer.resize(size.width, size.height),
             WindowEvent::RedrawRequested => {
                 if self.last_cpu_frame != self.cpu.frame_counter {
-                    renderer.update_display(&self.cpu.ppu.display);
+                    renderer.update_display(self.cpu.get_display_buffer());
                     self.last_cpu_frame = self.cpu.frame_counter;
                 }
 
@@ -188,7 +191,6 @@ impl ApplicationHandler<UserEvent> for App {
             UserEvent::RunCPU(millis) => {
                 self.cpu.update_input(&self.input_state);
                 self.cpu.run(millis);
-                self.audio.update_audio(self.cpu.apu.receive_buffer());
             }
             UserEvent::Test(string) => {
                 web_sys::console::log_1(&JsValue::from_str(&string));
