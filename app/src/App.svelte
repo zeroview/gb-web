@@ -36,15 +36,17 @@
 <main>
   <canvas id="canvas"></canvas>
   {#if !running}
-    <input
-      id="fileInput"
-      accept=".gb"
-      type="file"
-      bind:files
-      style="display = none"
-    />
-    <button onclick={() => document.getElementById("fileInput")?.click()}>
-      ▶ Choose ROM
-    </button>
+    <div class="menu">
+      <input
+        id="fileInput"
+        accept=".gb"
+        type="file"
+        bind:files
+        style="display: none"
+      />
+      <button onclick={() => document.getElementById("fileInput")?.click()}>
+        Load ROM
+      </button>
+    </div>
   {/if}
 </main>

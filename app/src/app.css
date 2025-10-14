@@ -1,6 +1,6 @@
 @font-face {
-  font-family: PixelMix;
-  src: url("../assets/pixelmix.ttf")
+  font-family: GBBoot;
+  src: local("GBBoot"), url("../assets/gbboot.woff2")
 }
 
 * {
@@ -17,18 +17,39 @@ main {
   height: 100%;
 }
 
-button {
+.menu {
   margin: 0;
+  height: 100%;
+  width: 100%;
+  position: absolute;
+  background-color: rgba(58, 110, 194, 0.3);
+}
+button {
   position: absolute;
   font-size: 40px;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  font-family: PixelMix;
+
+  font-family: GBBoot;
+  font-smooth: never;
+  -webkit-font-smoothing: none;
+
+  background-color: transparent;
+  border: none;
+  cursor: pointer; 
+  color: #d1d1d1;
+  transition: color 0.2s ease;
 }
+
+button:hover {
+  color: #ffffff;
+}
+
 canvas {
   position: absolute;
   background-color: black;
   width: 100%;
   height: 100%;
+  z-index: -1;
 }
