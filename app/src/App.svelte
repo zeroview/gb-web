@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { spawn_event_loop, Proxy } from "DMG-2025";
+  import { spawn_event_loop, Proxy, Color, Palette, Options } from "DMG-2025";
   import { fade } from "svelte/transition";
 
   const inputMap: Record<string, string> = {
@@ -12,6 +12,33 @@
     Select: "Backspace",
     Start: "Enter",
   };
+
+  let currentPalette = $state("LCD");
+  const palettes: Record<string, Palette> = {
+    LCD: new Palette(
+      new Color(0.7454042, 0.9386857, 0.6307571),
+      new Color(0.2462013, 0.5271151, 0.1620293),
+      new Color(0.0343398, 0.1384316, 0.0930589),
+      new Color(0.0024282, 0.009134, 0.0144438),
+    ),
+    "Accurate LCD": new Palette(
+      new Color(0.327778, 0.5028864, 0.0047769),
+      new Color(0.2581828, 0.4125426, 0.0047769),
+      new Color(0.0295568, 0.1221387, 0.0295568),
+      new Color(0.0047769, 0.0395462, 0.0047769),
+    ),
+    Raw: new Palette(
+      new Color(1.0, 1.0, 1.0),
+      new Color(0.6666, 0.6666, 0.6666),
+      new Color(0.3333, 0.3333, 0.3333),
+      new Color(0.0, 0.0, 0.0),
+    ),
+  };
+
+  function getOptions() {
+    return new Options(palettes[currentPalette]);
+  }
+  let options = getOptions();
 
   let running = $state(false);
   let files: FileList | undefined = $state();
@@ -44,7 +71,7 @@
 
   function load_rom(rom: ArrayBuffer) {
     if (!proxy) {
-      proxy = spawn_event_loop();
+      proxy = spawn_event_loop(options);
     }
     running = true;
     proxy.load_rom(new Uint8Array(rom));
@@ -52,7 +79,7 @@
   }
 
   function handleKey(event: KeyboardEvent, pressed: boolean) {
-    if (pressed && event.key == "Escape") {
+    if (pressed && event.key === "Escape") {
       if (!proxy) {
         return;
       }
@@ -68,6 +95,18 @@
       }
     }
   }
+
+  function swapPalette() {
+    let paletteNames = Object.keys(palettes);
+    let paletteIndex = paletteNames.indexOf(currentPalette);
+    paletteIndex++;
+    if (paletteIndex >= paletteNames.length) {
+      paletteIndex = 0;
+    }
+    currentPalette = paletteNames[paletteIndex];
+    options = getOptions();
+    proxy?.update_options(options);
+  }
 </script>
 
 <svelte:window
@@ -76,7 +115,7 @@
 />
 
 <main>
-  <canvas id="canvas"></canvas>
+  <canvas id="canvas" tabindex="-1"></canvas>
   {#if !running}
     <div class="menu" transition:fade={{ duration: 100 }}>
       <input
@@ -89,6 +128,10 @@
       <button onclick={() => document.getElementById("fileInput")?.click()}>
         Load ROM
       </button>
+      <div class="palette">
+        <p>Palette:</p>
+        <button onclick={swapPalette}>{currentPalette}</button>
+      </div>
     </div>
   {/if}
 </main>

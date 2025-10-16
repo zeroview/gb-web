@@ -25,15 +25,30 @@ main {
   width: 100%;
   position: absolute;
   background-color: hsl(211, 41%, 13%, 0.8);
+
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+}
+
+.palette {
+  display: flex;
+  flex-direction: row;
+  gap: 15px;
+}
+
+p {
+  color: #d1d1d1;
+  font-size: 40px;
+  font-family: GBBoot;
+  font-smooth: never;
+  -webkit-font-smoothing: none;
 }
 
 button {
-  position: absolute;
+  color: #d1d1d1;
   font-size: 40px;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-
   font-family: GBBoot;
   font-smooth: never;
   -webkit-font-smoothing: none;
@@ -41,7 +56,6 @@ button {
   background-color: transparent;
   border: none;
   cursor: pointer;
-  color: #d1d1d1;
   transition: color 0.2s ease;
 }
 
@@ -54,4 +68,5 @@ canvas {
   background-color: black;
   width: 100%;
   height: 100%;
+  z-index: -1;
 }

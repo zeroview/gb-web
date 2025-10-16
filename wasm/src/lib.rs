@@ -12,13 +12,13 @@ mod audio;
 use audio::*;
 mod renderer;
 use renderer::*;
-mod options;
-use options::*;
+mod proxy;
+use proxy::*;
 
 const CANVAS_ID: &str = "canvas";
 
 #[wasm_bindgen]
-pub fn spawn_event_loop() -> Result<Proxy, JsValue> {
+pub fn spawn_event_loop(options: Options) -> Result<Proxy, JsValue> {
     // Initialize debugging tools
     console_error_panic_hook::set_once();
     console_log::init_with_level(log::Level::Info).unwrap_throw();
@@ -26,7 +26,7 @@ pub fn spawn_event_loop() -> Result<Proxy, JsValue> {
     // Create event loop and a proxy to communicate with it from the frontend
     let event_loop = EventLoop::with_user_event().build().unwrap_throw();
     event_loop.set_control_flow(winit::event_loop::ControlFlow::Wait);
-    let app = App::new(&event_loop);
+    let app = App::new(&event_loop, options);
     let proxy = event_loop.create_proxy();
 
     use winit::platform::web::EventLoopExtWebSys;
@@ -34,48 +34,10 @@ pub fn spawn_event_loop() -> Result<Proxy, JsValue> {
     Ok(Proxy { proxy })
 }
 
-#[wasm_bindgen]
-// A proxy to communicate with the event loop from frontend
-pub struct Proxy {
-    proxy: EventLoopProxy<UserEvent>,
-}
-
-#[wasm_bindgen]
-impl Proxy {
-    fn send(&self, event: UserEvent) {
-        self.proxy
-            .send_event(event)
-            .expect("Couldn't send event to EventLoop");
-    }
-    pub fn test(&self, str: String) {
-        self.send(UserEvent::Test(str));
-    }
-
-    pub fn load_rom(&self, rom: Vec<u8>) {
-        self.send(UserEvent::LoadRom(rom));
-    }
-
-    pub fn run_cpu(&self, millis: f32) {
-        self.send(UserEvent::RunCPU(millis));
-    }
-
-    pub fn update_input(&self, key: String, pressed: bool) {
-        self.send(UserEvent::UpdateInput(key, pressed));
-    }
-}
-
-#[derive(Debug)]
-pub enum UserEvent {
-    InitRenderer(Box<Renderer>),
-    LoadRom(Vec<u8>),
-    RunCPU(f32),
-    UpdateInput(String, bool),
-    Test(String),
-}
-
 pub struct App {
     proxy: Option<winit::event_loop::EventLoopProxy<UserEvent>>,
     renderer: Option<Renderer>,
+    options: Options,
     audio: Option<AudioHandler>,
     input_state: InputFlag,
     cpu: Option<CPU>,
@@ -83,10 +45,11 @@ pub struct App {
 }
 
 impl App {
-    pub fn new(event_loop: &EventLoop<UserEvent>) -> Self {
+    pub fn new(event_loop: &EventLoop<UserEvent>, options: Options) -> Self {
         Self {
             proxy: Some(event_loop.create_proxy()),
             renderer: None,
+            options,
             audio: None,
             input_state: InputFlag::from_bits_truncate(0xFF),
             cpu: None,
@@ -110,7 +73,7 @@ impl ApplicationHandler<UserEvent> for App {
         window_attributes = window_attributes.with_canvas(Some(html_canvas_element));
 
         let window = Arc::new(event_loop.create_window(window_attributes).unwrap());
-
+        let options = self.options.clone();
         // Run the future asynchronously and use the
         // proxy to send the results to the event loop
         if let Some(proxy) = self.proxy.take() {
@@ -118,7 +81,7 @@ impl ApplicationHandler<UserEvent> for App {
                 assert!(
                     proxy
                         .send_event(UserEvent::InitRenderer(Box::new(
-                            Renderer::new(window)
+                            Renderer::new(window, &options)
                                 .await
                                 .expect("Unable to create canvas")
                         )))
@@ -210,6 +173,12 @@ impl ApplicationHandler<UserEvent> for App {
                     if let Some(cpu) = &mut self.cpu {
                         cpu.update_input(&self.input_state);
                     }
+                }
+            }
+            UserEvent::UpdateOptions(options) => {
+                self.options = options;
+                if let Some(renderer) = &mut self.renderer {
+                    renderer.update_options(&self.options);
                 }
             }
             UserEvent::Test(string) => {

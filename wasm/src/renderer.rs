@@ -14,9 +14,9 @@ struct OptionsUniform {
 }
 
 impl OptionsUniform {
-    fn new() -> Self {
+    fn new(options: &Options) -> Self {
         Self {
-            palette: Palette::lcd(),
+            palette: options.palette,
             display_width: 160,
             display_height: 144,
             canvas_width: 0,
@@ -97,7 +97,7 @@ impl Renderer {
         (buffer, bind_group_layout, bind_group)
     }
 
-    pub async fn new(window: Arc<Window>) -> anyhow::Result<Self> {
+    pub async fn new(window: Arc<Window>, options: &Options) -> anyhow::Result<Self> {
         let size = window.inner_size();
 
         // The instance is a handle to our GPU
@@ -150,7 +150,7 @@ impl Renderer {
         };
 
         // Initialize options uniform for the GPU
-        let options_uniform = OptionsUniform::new();
+        let options_uniform = OptionsUniform::new(options);
         let (options_buffer, options_bind_group_layout, options_bind_group) =
             Self::init_uniform_buffer(&device, options_uniform, "Options");
 
@@ -239,6 +239,15 @@ impl Renderer {
                 bytemuck::cast_slice(&[self.options_uniform]),
             );
         }
+    }
+
+    pub fn update_options(&mut self, options: &Options) {
+        self.options_uniform.palette = options.palette;
+        self.queue.write_buffer(
+            &self.options_buffer,
+            0,
+            bytemuck::cast_slice(&[self.options_uniform]),
+        );
     }
 
     pub fn update_display(&mut self, display: &DisplayBuffer) {
