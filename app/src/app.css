@@ -24,7 +24,7 @@ main {
   height: 100%;
   width: 100%;
   position: absolute;
-  background-color: rgba(58, 110, 194, 0.3);
+  background-color: hsl(211, 41%, 13%, 0.8);
 }
 
 button {

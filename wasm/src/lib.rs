@@ -5,7 +5,6 @@ use winit::{
     application::ApplicationHandler,
     event::*,
     event_loop::{ActiveEventLoop, EventLoop, EventLoopProxy},
-    keyboard::PhysicalKey,
     window::Window,
 };
 
@@ -19,13 +18,15 @@ use options::*;
 const CANVAS_ID: &str = "canvas";
 
 #[wasm_bindgen]
-pub fn run(rom: &[u8]) -> Result<Proxy, JsValue> {
+pub fn spawn_event_loop() -> Result<Proxy, JsValue> {
+    // Initialize debugging tools
     console_error_panic_hook::set_once();
     console_log::init_with_level(log::Level::Info).unwrap_throw();
 
+    // Create event loop and a proxy to communicate with it from the frontend
     let event_loop = EventLoop::with_user_event().build().unwrap_throw();
     event_loop.set_control_flow(winit::event_loop::ControlFlow::Wait);
-    let app = App::new(&event_loop, rom.to_vec());
+    let app = App::new(&event_loop);
     let proxy = event_loop.create_proxy();
 
     use winit::platform::web::EventLoopExtWebSys;
@@ -34,7 +35,7 @@ pub fn run(rom: &[u8]) -> Result<Proxy, JsValue> {
 }
 
 #[wasm_bindgen]
-// A proxy to communicate with the event loop from JavaScript
+// A proxy to communicate with the event loop from frontend
 pub struct Proxy {
     proxy: EventLoopProxy<UserEvent>,
 }
@@ -50,44 +51,45 @@ impl Proxy {
         self.send(UserEvent::Test(str));
     }
 
+    pub fn load_rom(&self, rom: Vec<u8>) {
+        self.send(UserEvent::LoadRom(rom));
+    }
+
     pub fn run_cpu(&self, millis: f32) {
         self.send(UserEvent::RunCPU(millis));
+    }
+
+    pub fn update_input(&self, key: String, pressed: bool) {
+        self.send(UserEvent::UpdateInput(key, pressed));
     }
 }
 
 #[derive(Debug)]
 pub enum UserEvent {
     InitRenderer(Box<Renderer>),
+    LoadRom(Vec<u8>),
     RunCPU(f32),
+    UpdateInput(String, bool),
     Test(String),
 }
 
 pub struct App {
     proxy: Option<winit::event_loop::EventLoopProxy<UserEvent>>,
-    options: Options,
     renderer: Option<Renderer>,
-    audio: AudioHandler,
+    audio: Option<AudioHandler>,
     input_state: InputFlag,
-    cpu: CPU,
+    cpu: Option<CPU>,
     last_cpu_frame: u8,
 }
 
 impl App {
-    pub fn new(event_loop: &EventLoop<UserEvent>, rom: Vec<u8>) -> Self {
-        let mut cpu = CPU::new(rom);
-
-        let audio_config = AudioHandler::get_audio_config();
-        let audio_consumer = cpu.init_audio_buffer(&audio_config);
-        let audio = AudioHandler::init(audio_consumer);
-
-        let options = Options::default();
+    pub fn new(event_loop: &EventLoop<UserEvent>) -> Self {
         Self {
             proxy: Some(event_loop.create_proxy()),
-            options,
             renderer: None,
-            audio,
+            audio: None,
             input_state: InputFlag::from_bits_truncate(0xFF),
-            cpu,
+            cpu: None,
             last_cpu_frame: 0,
         }
     }
@@ -141,35 +143,23 @@ impl ApplicationHandler<UserEvent> for App {
             WindowEvent::CloseRequested => event_loop.exit(),
             WindowEvent::Resized(size) => renderer.resize(size.width, size.height),
             WindowEvent::RedrawRequested => {
-                if self.last_cpu_frame != self.cpu.frame_counter {
-                    renderer.update_display(self.cpu.get_display_buffer());
-                    self.last_cpu_frame = self.cpu.frame_counter;
-                }
+                if let Some(cpu) = &self.cpu {
+                    // Update buffer only when there is new frame available
+                    if self.last_cpu_frame != cpu.frame_counter {
+                        renderer.update_display(cpu.get_display_buffer());
+                        self.last_cpu_frame = cpu.frame_counter;
+                    }
 
-                match renderer.render() {
-                    Ok(_) => {}
-                    // Reconfigure the surface if it's lost or outdated
-                    Err(wgpu::SurfaceError::Lost | wgpu::SurfaceError::Outdated) => {
-                        let size = renderer.window.inner_size();
-                        renderer.resize(size.width, size.height);
-                    }
-                    Err(e) => {
-                        log::error!("Unable to render {}", e);
-                    }
-                }
-            }
-            WindowEvent::KeyboardInput {
-                event:
-                    KeyEvent {
-                        physical_key: PhysicalKey::Code(code),
-                        state: key_state,
-                        ..
-                    },
-                ..
-            } => {
-                for (input, key) in &self.options.keybinds {
-                    if code == *key {
-                        self.input_state.set(*input, !key_state.is_pressed());
+                    match renderer.render() {
+                        Ok(_) => {}
+                        // Reconfigure the surface if it's lost or outdated
+                        Err(wgpu::SurfaceError::Lost | wgpu::SurfaceError::Outdated) => {
+                            let size = renderer.window.inner_size();
+                            renderer.resize(size.width, size.height);
+                        }
+                        Err(e) => {
+                            log::error!("Unable to render {}", e);
+                        }
                     }
                 }
             }
@@ -188,9 +178,39 @@ impl ApplicationHandler<UserEvent> for App {
                 );
                 self.renderer = Some(*renderer);
             }
+            UserEvent::LoadRom(rom) => {
+                let mut cpu = CPU::new(rom);
+                let audio_config = AudioHandler::get_audio_config();
+                let audio_consumer = cpu.init_audio_buffer(&audio_config);
+                let audio = AudioHandler::init(audio_consumer);
+
+                self.cpu = Some(cpu);
+                self.audio = Some(audio);
+            }
             UserEvent::RunCPU(millis) => {
-                self.cpu.update_input(&self.input_state);
-                self.cpu.run(millis);
+                if let Some(cpu) = &mut self.cpu {
+                    cpu.run(millis);
+                }
+            }
+            UserEvent::UpdateInput(input_str, pressed) => {
+                let input_option = match input_str.as_str() {
+                    "Right" => Some(InputFlag::RIGHT),
+                    "Left" => Some(InputFlag::LEFT),
+                    "Up" => Some(InputFlag::UP),
+                    "Down" => Some(InputFlag::DOWN),
+                    "A" => Some(InputFlag::A),
+                    "B" => Some(InputFlag::B),
+                    "Select" => Some(InputFlag::SELECT),
+                    "Start" => Some(InputFlag::START),
+                    _ => None,
+                };
+                if let Some(input_flag) = input_option {
+                    self.input_state.set(input_flag, !pressed);
+
+                    if let Some(cpu) = &mut self.cpu {
+                        cpu.update_input(&self.input_state);
+                    }
+                }
             }
             UserEvent::Test(string) => {
                 log::info!("Test from JS: {}", &string);

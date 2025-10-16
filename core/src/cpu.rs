@@ -44,7 +44,7 @@ impl CPU {
     }
 
     /// Returns the latest fully drawn display buffer for rendering
-    pub fn get_display_buffer(&mut self) -> &DisplayBuffer {
+    pub fn get_display_buffer(&self) -> &DisplayBuffer {
         &self.ppu.display
     }
 
