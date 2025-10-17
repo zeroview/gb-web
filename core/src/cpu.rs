@@ -38,9 +38,20 @@ impl CPU {
         }
     }
 
-    /// Initializes a ring buffer for audio playback and returns its consumer
-    pub fn init_audio_buffer(&mut self, config: &AudioConfig) -> AudioBufferConsumer {
-        self.apu.init_buffer(config)
+    /// Initializes a ring buffer for audio playback and returns its consumer.
+    /// Remember to set sample rate using set_audio_sample_rate
+    pub fn init_audio_buffer(
+        &mut self,
+        sample_capacity: usize,
+        channels: usize,
+    ) -> AudioBufferConsumer {
+        self.apu.init_buffer(sample_capacity, channels)
+    }
+
+    /// Sets the sample rate for the audio processing unit.
+    /// Is set separately so audio emulation can be adjusted to possible emulation speed changes
+    pub fn set_audio_sample_rate(&mut self, sample_rate: u32) {
+        self.apu.set_sample_rate(sample_rate);
     }
 
     /// Returns the latest fully drawn display buffer for rendering

@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { spawn_event_loop, Proxy, Color, Palette, Options } from "DMG-2025";
+  import EmulatorManager from "./manager.svelte";
+  import { Color, Palette, Options } from "DMG-2025";
   import { fade } from "svelte/transition";
 
   const inputMap: Record<string, string> = {
@@ -13,7 +14,6 @@
     Start: "Enter",
   };
 
-  let currentPalette = $state("LCD");
   const palettes: Record<string, Palette> = {
     LCD: new Palette(
       new Color(0.7454042, 0.9386857, 0.6307571),
@@ -35,63 +35,20 @@
     ),
   };
 
-  function getOptions() {
-    return new Options(palettes[currentPalette]);
-  }
-  let options = getOptions();
-
-  let running = $state(false);
-  let files: FileList | undefined = $state();
-  $effect(() => {
-    // Open selected file as byte array
-    if (files) {
-      files[0].arrayBuffer().then(load_rom);
-    }
-  });
-
-  let proxy: Proxy | undefined = undefined;
-
-  function resume() {
-    // Progress emulator every animation frame for the duration it took to make last frame
-    let lastTime = performance.now();
-    function frame() {
-      if (!running) {
-        return;
-      }
-      let currentTime = performance.now();
-      let millis = Math.min(17, Math.max(0, currentTime - lastTime));
-      console.log(millis);
-      lastTime = currentTime;
-
-      proxy?.run_cpu(millis);
-      window.requestAnimationFrame(frame);
-    }
-    window.requestAnimationFrame(frame);
-  }
-
-  function load_rom(rom: ArrayBuffer) {
-    if (!proxy) {
-      proxy = spawn_event_loop(options);
-    }
-    running = true;
-    proxy.load_rom(new Uint8Array(rom));
-    resume();
-  }
+  let defaultPalette = Object.keys(palettes)[0];
+  let currentPalette = $state(defaultPalette);
+  let manager = new EmulatorManager(new Options(palettes[defaultPalette]));
 
   function handleKey(event: KeyboardEvent, pressed: boolean) {
     if (pressed && event.key === "Escape") {
-      if (!proxy) {
+      if (!manager.initialized) {
         return;
       }
-      running = !running;
-      if (running) {
-        resume();
-      }
+      manager.toggle_execution();
     }
     for (let key of Object.keys(inputMap)) {
       if (inputMap[key] === event.key) {
-        console.log(event.key);
-        proxy?.update_input(key, pressed);
+        manager.updateInput(key, pressed);
       }
     }
   }
@@ -104,9 +61,24 @@
       paletteIndex = 0;
     }
     currentPalette = paletteNames[paletteIndex];
-    options = getOptions();
-    proxy?.update_options(options);
+    manager.updateOptions((options) => {
+      options.palette = palettes[currentPalette];
+      return options;
+    });
   }
+
+  let speedSliderVal = $state(0);
+  $effect(() => {
+    manager.speed = Number((10 ** speedSliderVal).toPrecision(2));
+  });
+
+  let files: FileList | undefined = $state();
+  $effect(() => {
+    // Open selected file as byte array
+    if (files) {
+      files[0].arrayBuffer().then(manager.loadRom);
+    }
+  });
 </script>
 
 <svelte:window
@@ -116,7 +88,7 @@
 
 <main>
   <canvas id="canvas" tabindex="-1"></canvas>
-  {#if !running}
+  {#if !manager.running}
     <div class="menu" transition:fade={{ duration: 100 }}>
       <input
         id="fileInput"
@@ -128,9 +100,21 @@
       <button onclick={() => document.getElementById("fileInput")?.click()}>
         Load ROM
       </button>
-      <div class="palette">
+      <div class="menu-row">
         <p>Palette:</p>
         <button onclick={swapPalette}>{currentPalette}</button>
+      </div>
+      <div class="menu-row">
+        <p>Speed:</p>
+        <input
+          type="range"
+          bind:value={speedSliderVal}
+          min="-2"
+          max="2"
+          step="0.0001"
+          style="width: 300px"
+        />
+        <p style="width: 60px">{manager.speed}</p>
       </div>
     </div>
   {/if}

@@ -59,6 +59,7 @@ pub enum UserEvent {
     RunCPU(f32),
     UpdateInput(String, bool),
     UpdateOptions(Options),
+    SetAudioSpeed(f32),
     Test(String),
 }
 
@@ -93,5 +94,9 @@ impl Proxy {
 
     pub fn update_options(&self, options: Options) {
         self.send(UserEvent::UpdateOptions(options));
+    }
+
+    pub fn set_audio_speed(&self, speed: f32) {
+        self.send(UserEvent::SetAudioSpeed(speed));
     }
 }

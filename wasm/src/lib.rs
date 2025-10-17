@@ -38,7 +38,7 @@ pub struct App {
     proxy: Option<winit::event_loop::EventLoopProxy<UserEvent>>,
     renderer: Option<Renderer>,
     options: Options,
-    audio: Option<AudioHandler>,
+    audio: AudioHandler,
     input_state: InputFlag,
     cpu: Option<CPU>,
     last_cpu_frame: u8,
@@ -50,7 +50,7 @@ impl App {
             proxy: Some(event_loop.create_proxy()),
             renderer: None,
             options,
-            audio: None,
+            audio: AudioHandler::new(),
             input_state: InputFlag::from_bits_truncate(0xFF),
             cpu: None,
             last_cpu_frame: 0,
@@ -133,6 +133,7 @@ impl ApplicationHandler<UserEvent> for App {
     fn user_event(&mut self, _event_loop: &ActiveEventLoop, event: UserEvent) {
         match event {
             UserEvent::InitRenderer(mut renderer) => {
+                log::info!("Renderer initialized");
                 renderer.window.request_redraw();
                 // This is where proxy.send_event() ends up
                 renderer.resize(
@@ -143,12 +144,12 @@ impl ApplicationHandler<UserEvent> for App {
             }
             UserEvent::LoadRom(rom) => {
                 let mut cpu = CPU::new(rom);
-                let audio_config = AudioHandler::get_audio_config();
-                let audio_consumer = cpu.init_audio_buffer(&audio_config);
-                let audio = AudioHandler::init(audio_consumer);
+                cpu.set_audio_sample_rate(self.audio.sample_rate);
+                let audio_consumer =
+                    cpu.init_audio_buffer(self.audio.sample_capacity, self.audio.channels);
+                self.audio.init_playback(audio_consumer);
 
                 self.cpu = Some(cpu);
-                self.audio = Some(audio);
             }
             UserEvent::RunCPU(millis) => {
                 if let Some(cpu) = &mut self.cpu {
@@ -179,6 +180,16 @@ impl ApplicationHandler<UserEvent> for App {
                 self.options = options;
                 if let Some(renderer) = &mut self.renderer {
                     renderer.update_options(&self.options);
+                }
+            }
+            UserEvent::SetAudioSpeed(speed) => {
+                if let Some(cpu) = &mut self.cpu {
+                    let new_sample_rate = if speed == 1.0 {
+                        self.audio.sample_rate
+                    } else {
+                        ((self.audio.sample_rate as f32) / speed) as u32
+                    };
+                    cpu.set_audio_sample_rate(new_sample_rate);
                 }
             }
             UserEvent::Test(string) => {

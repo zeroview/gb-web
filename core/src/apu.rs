@@ -484,27 +484,11 @@ bitflags! {
     }
 }
 
-pub struct AudioConfig {
-    pub sample_rate: u32,
-    pub channels: usize,
-    pub buffer_capacity_ms: f32,
-}
-
-impl Default for AudioConfig {
-    fn default() -> Self {
-        Self {
-            sample_rate: 44100,
-            channels: 2,
-            buffer_capacity_ms: 100.0,
-        }
-    }
-}
-
 use ringbuf::{
+    HeapRb, SharedRb,
     storage::Heap,
     traits::{Producer, Split},
     wrap::caching::Caching,
-    HeapRb, SharedRb,
 };
 use std::sync::Arc;
 
@@ -560,18 +544,20 @@ impl APU {
         }
     }
 
-    pub fn init_buffer(&mut self, config: &AudioConfig) -> AudioBufferConsumer {
-        let sample_capacity = (((config.buffer_capacity_ms / 1000.0) * config.sample_rate as f32)
-            as usize)
-            * config.channels;
+    pub fn set_sample_rate(&mut self, sample_rate: u32) {
+        self.sample_delay = Self::CLOCK_SPEED / sample_rate;
+    }
+
+    pub fn init_buffer(&mut self, sample_capacity: usize, channels: usize) -> AudioBufferConsumer {
         let ring = HeapRb::<f32>::new(sample_capacity);
         let (producer, consumer) = ring.split();
 
-        self.sample_delay = 4194304 / config.sample_rate;
-        self.channels = config.channels;
+        self.channels = channels;
         self.buffer_producer = Some(producer);
         consumer
     }
+
+    const CLOCK_SPEED: u32 = 4194304;
 
     pub fn cycle(&mut self, timer_div: u16) {
         // Increment DIV-APU when DIV register bit 4 (actual divider bit 12)
@@ -615,7 +601,7 @@ impl APU {
         }
 
         // Only calculate next sample when needed
-        if self.sample_delay_counter != self.sample_delay {
+        if self.sample_delay_counter < self.sample_delay {
             self.sample_delay_counter += 1;
             return;
         }

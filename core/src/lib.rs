@@ -17,7 +17,7 @@ use ppu::*;
 use registers::*;
 use timer::*;
 
-pub use apu::{AudioBufferConsumer, AudioConfig};
+pub use apu::AudioBufferConsumer;
 pub use cpu::CPU;
 pub use input::InputFlag;
 pub use ppu::{DISPLAY_BUFFER_SIZE, DisplayBuffer};
