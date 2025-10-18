@@ -4,8 +4,10 @@ use cpal::{
 };
 use dmg_2025_core::AudioBufferConsumer;
 use ringbuf::traits::Consumer;
+use std::sync::{Arc, RwLock};
 
 pub struct AudioHandler {
+    pub volume: Arc<RwLock<f32>>,
     pub sample_rate: u32,
     pub channels: usize,
     pub sample_capacity: usize,
@@ -32,6 +34,7 @@ impl AudioHandler {
         let sample_format = config.sample_format();
 
         Self {
+            volume: Arc::new(RwLock::new(1.0)),
             sample_rate,
             channels,
             sample_capacity,
@@ -43,37 +46,30 @@ impl AudioHandler {
     }
 
     pub fn init_playback(&mut self, consumer: AudioBufferConsumer) {
-        self.stream = Some(match self.sample_format {
-            cpal::SampleFormat::F32 => {
-                Self::init_stream::<f32>(&self.device, &self.config, consumer)
-            }
-            cpal::SampleFormat::I16 => {
-                Self::init_stream::<i16>(&self.device, &self.config, consumer)
-            }
-            cpal::SampleFormat::U16 => {
-                Self::init_stream::<u16>(&self.device, &self.config, consumer)
-            }
+        match self.sample_format {
+            cpal::SampleFormat::F32 => self.init_stream::<f32>(consumer),
+            cpal::SampleFormat::I16 => self.init_stream::<i16>(consumer),
+            cpal::SampleFormat::U16 => self.init_stream::<u16>(consumer),
             _ => panic!("Unsupported sample format!"),
-        });
+        };
     }
 
-    fn init_stream<T>(
-        device: &cpal::Device,
-        config: &cpal::StreamConfig,
-        mut consumer: AudioBufferConsumer,
-    ) -> Stream
+    fn init_stream<T>(&mut self, mut consumer: AudioBufferConsumer)
     where
         T: SizedSample + FromSample<f32>,
     {
         let err_fn = |err| log::error!("Audio stream error: {}", err);
 
-        let stream = device
+        let volume_ref = Arc::clone(&self.volume);
+        let stream = self
+            .device
             .build_output_stream(
-                config,
+                &self.config,
                 move |data: &mut [T], _| {
+                    let volume = volume_ref.read().unwrap();
                     for sample in data.iter_mut() {
                         *sample = match consumer.try_pop() {
-                            Some(s) => T::from_sample::<f32>(s),
+                            Some(s) => T::from_sample::<f32>(s * *volume),
                             None => T::from_sample::<f32>(0.0),
                         };
                     }
@@ -83,6 +79,6 @@ impl AudioHandler {
             )
             .unwrap();
         stream.play().unwrap();
-        stream
+        self.stream = Some(stream);
     }
 }

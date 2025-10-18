@@ -1,7 +1,9 @@
 <script lang="ts">
   import EmulatorManager from "./manager.svelte";
-  import { Color, Palette, Options } from "DMG-2025";
+  import { Color, Palette } from "DMG-2025";
   import { fade } from "svelte/transition";
+
+  let manager = new EmulatorManager();
 
   const inputMap: Record<string, string> = {
     Right: "ArrowRight",
@@ -13,6 +15,19 @@
     Select: "Backspace",
     Start: "Enter",
   };
+  function handleKey(event: KeyboardEvent, pressed: boolean) {
+    if (pressed && event.key === "Escape") {
+      if (!manager.initialized) {
+        return;
+      }
+      manager.toggle_execution();
+    }
+    for (let key of Object.keys(inputMap)) {
+      if (inputMap[key] === event.key) {
+        manager.updateInput(key, pressed);
+      }
+    }
+  }
 
   const palettes: Record<string, Palette> = {
     LCD: new Palette(
@@ -34,24 +49,9 @@
       new Color(0.0, 0.0, 0.0),
     ),
   };
-
   let defaultPalette = Object.keys(palettes)[0];
   let currentPalette = $state(defaultPalette);
-  let manager = new EmulatorManager(new Options(palettes[defaultPalette]));
-
-  function handleKey(event: KeyboardEvent, pressed: boolean) {
-    if (pressed && event.key === "Escape") {
-      if (!manager.initialized) {
-        return;
-      }
-      manager.toggle_execution();
-    }
-    for (let key of Object.keys(inputMap)) {
-      if (inputMap[key] === event.key) {
-        manager.updateInput(key, pressed);
-      }
-    }
-  }
+  manager.options.update_palette(palettes[defaultPalette]);
 
   function swapPalette() {
     let paletteNames = Object.keys(palettes);
@@ -61,15 +61,24 @@
       paletteIndex = 0;
     }
     currentPalette = paletteNames[paletteIndex];
-    manager.updateOptions((options) => {
-      options.palette = palettes[currentPalette];
-      return options;
-    });
+
+    manager.options.update_palette(palettes[currentPalette]);
+    manager.updateOptions();
   }
 
-  let speedSliderVal = $state(0);
+  const speedSliderValues = [
+    0.01, 0.05, 0.1, 0.3, 0.5, 0.7, 0.8, 0.9, 1, 1.1, 1.3, 1.5, 2, 3, 5, 10, 20,
+  ];
+  let speedSliderVal = $state(speedSliderValues.indexOf(1));
   $effect(() => {
-    manager.speed = Number((10 ** speedSliderVal).toPrecision(2));
+    manager.options.speed = speedSliderValues[speedSliderVal];
+    manager.updateOptions();
+  });
+
+  let volumeSliderVal = $state(100);
+  $effect(() => {
+    manager.options.volume = volumeSliderVal / 100;
+    manager.updateOptions();
   });
 
   let files: FileList | undefined = $state();
@@ -90,31 +99,49 @@
   <canvas id="canvas" tabindex="-1"></canvas>
   {#if !manager.running}
     <div class="menu" transition:fade={{ duration: 100 }}>
-      <input
-        id="fileInput"
-        accept=".gb"
-        type="file"
-        bind:files
-        style="display: none"
-      />
-      <button onclick={() => document.getElementById("fileInput")?.click()}>
-        Load ROM
-      </button>
-      <div class="menu-row">
-        <p>Palette:</p>
-        <button onclick={swapPalette}>{currentPalette}</button>
-      </div>
-      <div class="menu-row">
-        <p>Speed:</p>
+      <div class="menu-container">
         <input
-          type="range"
-          bind:value={speedSliderVal}
-          min="-2"
-          max="2"
-          step="0.0001"
-          style="width: 300px"
+          id="fileInput"
+          accept=".gb"
+          type="file"
+          bind:files
+          style="display: none"
         />
-        <p style="width: 60px">{manager.speed}</p>
+        <button onclick={() => document.getElementById("fileInput")?.click()}>
+          Load ROM
+        </button>
+        <p style="height: 50px"></p>
+
+        <div class="menu-row">
+          <p style="text-align:right">Speed:</p>
+          <input
+            type="range"
+            bind:value={speedSliderVal}
+            min="0"
+            max={speedSliderValues.length - 1}
+            step="1"
+            style="width: 250px"
+          />
+          <p>{`${speedSliderValues[speedSliderVal]}x`}</p>
+        </div>
+
+        <div class="menu-row">
+          <p style="text-align:right">Volume:</p>
+          <input
+            type="range"
+            bind:value={volumeSliderVal}
+            min="0"
+            max="200"
+            step="1"
+            style="width: 250px"
+          />
+          <p>{`${volumeSliderVal}%`}</p>
+        </div>
+
+        <div class="menu-row">
+          <p style="text-align:right">Palette:</p>
+          <button onclick={swapPalette}>{currentPalette}</button>
+        </div>
       </div>
     </div>
   {/if}

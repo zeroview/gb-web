@@ -29,6 +29,11 @@ main {
   display: flex;
   justify-content: center;
   align-items: center;
+}
+
+.menu-container {
+  width: initial;
+  display: flex;
   flex-direction: column;
 }
 
@@ -38,12 +43,22 @@ main {
   gap: 15px;
 }
 
-p {
+.menu-row p {
+  width: 200px;
   color: #d1d1d1;
   font-size: 40px;
   font-family: GBBoot;
   font-smooth: never;
   -webkit-font-smoothing: none;
+
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+}
+
+br {
+  height: 40px;
 }
 
 button {

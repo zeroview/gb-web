@@ -18,7 +18,7 @@ use proxy::*;
 const CANVAS_ID: &str = "canvas";
 
 #[wasm_bindgen]
-pub fn spawn_event_loop(options: Options) -> Result<Proxy, JsValue> {
+pub fn spawn_event_loop() -> Result<Proxy, JsValue> {
     // Initialize debugging tools
     console_error_panic_hook::set_once();
     console_log::init_with_level(log::Level::Info).unwrap_throw();
@@ -26,7 +26,7 @@ pub fn spawn_event_loop(options: Options) -> Result<Proxy, JsValue> {
     // Create event loop and a proxy to communicate with it from the frontend
     let event_loop = EventLoop::with_user_event().build().unwrap_throw();
     event_loop.set_control_flow(winit::event_loop::ControlFlow::Wait);
-    let app = App::new(&event_loop, options);
+    let app = App::new(&event_loop);
     let proxy = event_loop.create_proxy();
 
     use winit::platform::web::EventLoopExtWebSys;
@@ -45,11 +45,11 @@ pub struct App {
 }
 
 impl App {
-    pub fn new(event_loop: &EventLoop<UserEvent>, options: Options) -> Self {
+    pub fn new(event_loop: &EventLoop<UserEvent>) -> Self {
         Self {
             proxy: Some(event_loop.create_proxy()),
             renderer: None,
-            options,
+            options: Options::default(),
             audio: AudioHandler::new(),
             input_state: InputFlag::from_bits_truncate(0xFF),
             cpu: None,
@@ -73,7 +73,7 @@ impl ApplicationHandler<UserEvent> for App {
         window_attributes = window_attributes.with_canvas(Some(html_canvas_element));
 
         let window = Arc::new(event_loop.create_window(window_attributes).unwrap());
-        let options = self.options.clone();
+        let options = self.options;
         // Run the future asynchronously and use the
         // proxy to send the results to the event loop
         if let Some(proxy) = self.proxy.take() {
@@ -135,11 +135,11 @@ impl ApplicationHandler<UserEvent> for App {
             UserEvent::InitRenderer(mut renderer) => {
                 log::info!("Renderer initialized");
                 renderer.window.request_redraw();
-                // This is where proxy.send_event() ends up
                 renderer.resize(
                     renderer.window.inner_size().width,
                     renderer.window.inner_size().height,
                 );
+                renderer.update_options(&self.options);
                 self.renderer = Some(*renderer);
             }
             UserEvent::LoadRom(rom) => {
@@ -177,20 +177,23 @@ impl ApplicationHandler<UserEvent> for App {
                 }
             }
             UserEvent::UpdateOptions(options) => {
-                self.options = options;
+                // Update renderer options
                 if let Some(renderer) = &mut self.renderer {
-                    renderer.update_options(&self.options);
+                    renderer.update_options(&options);
                 }
-            }
-            UserEvent::SetAudioSpeed(speed) => {
+                // Update audio sample speed
                 if let Some(cpu) = &mut self.cpu {
-                    let new_sample_rate = if speed == 1.0 {
+                    let new_sample_rate = if options.speed == 1.0 {
                         self.audio.sample_rate
                     } else {
-                        ((self.audio.sample_rate as f32) / speed) as u32
+                        ((self.audio.sample_rate as f32) / options.speed) as u32
                     };
                     cpu.set_audio_sample_rate(new_sample_rate);
                 }
+                // Update audio volume
+                *self.audio.volume.write().unwrap() = options.volume;
+
+                self.options = options;
             }
             UserEvent::Test(string) => {
                 log::info!("Test from JS: {}", &string);

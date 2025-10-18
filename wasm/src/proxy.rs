@@ -38,17 +38,44 @@ impl Palette {
     }
 }
 
+impl Default for Palette {
+    fn default() -> Self {
+        Self::new(
+            Color::new(1.0, 1.0, 1.0),
+            Color::new(0.6666, 0.6666, 0.6666),
+            Color::new(0.3333, 0.3333, 0.3333),
+            Color::new(0.0, 0.0, 0.0),
+        )
+    }
+}
+
 #[wasm_bindgen]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct Options {
     pub palette: Palette,
+    pub speed: f32,
+    pub volume: f32,
 }
 
 #[wasm_bindgen]
 impl Options {
     #[wasm_bindgen(constructor)]
-    pub fn new(palette: &Palette) -> Self {
-        Self { palette: *palette }
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn update_palette(&mut self, palette: &Palette) {
+        self.palette = *palette;
+    }
+}
+
+impl Default for Options {
+    fn default() -> Self {
+        Self {
+            palette: Palette::default(),
+            speed: 1.0,
+            volume: 1.0,
+        }
     }
 }
 
@@ -59,7 +86,6 @@ pub enum UserEvent {
     RunCPU(f32),
     UpdateInput(String, bool),
     UpdateOptions(Options),
-    SetAudioSpeed(f32),
     Test(String),
 }
 
@@ -92,11 +118,7 @@ impl Proxy {
         self.send(UserEvent::UpdateInput(key, pressed));
     }
 
-    pub fn update_options(&self, options: Options) {
-        self.send(UserEvent::UpdateOptions(options));
-    }
-
-    pub fn set_audio_speed(&self, speed: f32) {
-        self.send(UserEvent::SetAudioSpeed(speed));
+    pub fn update_options(&self, options: &Options) {
+        self.send(UserEvent::UpdateOptions(*options));
     }
 }
