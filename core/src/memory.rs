@@ -70,6 +70,14 @@ impl CartridgeInfo {
     }
 }
 
+pub struct ROMValidationError {}
+
+impl std::fmt::Display for ROMValidationError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "ROM header is invalid")
+    }
+}
+
 #[derive(Deserialize, Serialize)]
 pub struct Memory {
     #[serde(with = "BigArray")]
@@ -81,18 +89,25 @@ pub struct Memory {
 }
 
 impl Memory {
-    pub fn new(rom_file: Vec<u8>) -> Self {
+    /// https://gbdev.io/pandocs/The_Cartridge_Header.html#0104-0133--nintendo-logo
+    const LOGO_DUMP: &[u8; 48] = include_bytes!("logo_dump");
+
+    pub fn new(rom_file: Vec<u8>) -> Result<Self, ROMValidationError> {
+        // Return error if ROM file is invalid
+        if &rom_file[0x0104..=0x0133] != Self::LOGO_DUMP {
+            return Err(ROMValidationError {});
+        }
         let info = CartridgeInfo::from_header(&rom_file[0x0100..=0x014F]);
         println!("{:?}", info);
         let mut mbc = MBC::init(info);
         mbc.load_rom(rom_file);
 
-        Self {
+        Ok(Self {
             wram: [0; 0x2000],
             hram: [0; 0x7F],
             mbc,
             info,
-        }
+        })
     }
 }
 

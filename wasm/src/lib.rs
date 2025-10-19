@@ -35,6 +35,7 @@ pub fn spawn_event_loop() -> Result<Proxy, JsValue> {
 }
 
 pub struct App {
+    window: web_sys::Window,
     proxy: Option<winit::event_loop::EventLoopProxy<UserEvent>>,
     renderer: Option<Renderer>,
     options: Options,
@@ -47,6 +48,7 @@ pub struct App {
 impl App {
     pub fn new(event_loop: &EventLoop<UserEvent>) -> Self {
         Self {
+            window: web_sys::window().unwrap(),
             proxy: Some(event_loop.create_proxy()),
             renderer: None,
             options: Options::default(),
@@ -56,8 +58,6 @@ impl App {
             last_cpu_frame: 0,
         }
     }
-
-    fn load_rom(&mut self, rom: Vec<u8>) {}
 }
 
 impl ApplicationHandler<UserEvent> for App {
@@ -68,7 +68,7 @@ impl ApplicationHandler<UserEvent> for App {
         use wasm_bindgen::JsCast;
         use winit::platform::web::WindowAttributesExtWebSys;
 
-        let window = wgpu::web_sys::window().unwrap_throw();
+        let window = web_sys::window().unwrap_throw();
         let document = window.document().unwrap_throw();
         let canvas = document.get_element_by_id(CANVAS_ID).unwrap_throw();
         let html_canvas_element = canvas.unchecked_into();
@@ -145,36 +145,52 @@ impl ApplicationHandler<UserEvent> for App {
                 self.renderer = Some(*renderer);
             }
             UserEvent::LoadRom(file, is_zip) => {
-                let rom: Vec<u8> = if is_zip {
-                    use std::io::{BufReader, Cursor, Read};
+                // If loaded rom file is zip, try to unzip it into a ROM File
+                let rom = if is_zip {
+                    use std::io::{BufReader, Cursor, Read, Result};
                     use std::path::Path;
 
                     let mut rom_option = None;
-                    let mut archive = zip::ZipArchive::new(Cursor::new(&file[..])).unwrap();
-
-                    // Loop through files in zip to find ROM
-                    for i in 0..archive.len() {
-                        let archive_file = archive.by_index(i).unwrap();
-                        // Choose first file inside zip that either has no extension or .gb
-                        if Path::new(archive_file.name())
-                            .extension()
-                            .is_none_or(|ext| ext == "gb")
-                        {
-                            let buf = BufReader::new(archive_file);
-                            rom_option = Some(buf.bytes().map(|b| b.unwrap()).collect());
-                            break;
+                    if let Ok(mut archive) = zip::ZipArchive::new(Cursor::new(&file[..])) {
+                        // Loop through files in zip to find ROM
+                        for i in 0..archive.len() {
+                            if let Ok(archive_file) = archive.by_index(i) {
+                                // Choose first file inside zip that either has no extension or .gb
+                                if Path::new(archive_file.name())
+                                    .extension()
+                                    .is_none_or(|ext| ext == "gb")
+                                {
+                                    let buf = BufReader::new(archive_file);
+                                    let rom_result: Result<Vec<u8>> = buf.bytes().collect();
+                                    if let Ok(deflated_rom) = rom_result {
+                                        rom_option = Some(deflated_rom);
+                                        break;
+                                    }
+                                }
+                            }
                         }
                     }
-                    rom_option.unwrap()
+                    rom_option
                 } else {
-                    file
+                    Some(file)
                 };
-                let mut cpu = CPU::new(rom);
-                cpu.set_audio_sample_rate(self.audio.sample_rate);
-                let audio_consumer =
-                    cpu.init_audio_buffer(self.audio.sample_capacity, self.audio.channels);
-                self.audio.init_playback(audio_consumer);
-                self.cpu = Some(cpu);
+
+                if let Some(rom) = rom {
+                    match CPU::new(rom) {
+                        Ok(mut cpu) => {
+                            cpu.set_audio_sample_rate(self.audio.sample_rate);
+                            let audio_consumer = cpu
+                                .init_audio_buffer(self.audio.sample_capacity, self.audio.channels);
+                            self.audio.init_playback(audio_consumer);
+                            self.cpu = Some(cpu);
+                        }
+                        Err(e) => {
+                            let _ = self.window.alert_with_message(&e.to_string());
+                        }
+                    }
+                } else {
+                    let _ = self.window.alert_with_message("Zip archive is invalid");
+                }
             }
             UserEvent::RunCPU(millis) => {
                 if let Some(cpu) = &mut self.cpu {

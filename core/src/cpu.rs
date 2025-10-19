@@ -10,8 +10,8 @@ pub use readwrite::*;
 #[allow(clippy::upper_case_acronyms)]
 #[derive(Deserialize, Serialize)]
 pub struct CPU {
-    reg: Registers,
     mem: Memory,
+    reg: Registers,
     ppu: PPU,
     apu: APU,
     timer: Timer,
@@ -23,19 +23,20 @@ pub struct CPU {
 }
 
 impl CPU {
-    pub fn new(rom_file: Vec<u8>) -> Self {
-        Self {
+    pub fn new(rom_file: Vec<u8>) -> Result<Self, ROMValidationError> {
+        let mem = Memory::new(rom_file)?;
+        Ok(Self {
+            mem,
             reg: Registers::new(),
             ppu: PPU::new(),
             apu: APU::new(),
-            mem: Memory::new(rom_file),
             timer: Timer::new(),
             input: InputReg::new(),
             istate: InterruptState::new(),
             halt: false,
             frame_counter: 0,
             cycle_counter: 0,
-        }
+        })
     }
 
     /// Initializes a ring buffer for audio playback and returns its consumer.
