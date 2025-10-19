@@ -82,7 +82,7 @@ impl Default for Options {
 #[derive(Debug)]
 pub enum UserEvent {
     InitRenderer(Box<Renderer>),
-    LoadRom(Vec<u8>),
+    LoadRom(Vec<u8>, bool),
     RunCPU(f32),
     UpdateInput(String, bool),
     UpdateOptions(Options),
@@ -106,8 +106,8 @@ impl Proxy {
         self.send(UserEvent::Test(str));
     }
 
-    pub fn load_rom(&self, rom: Vec<u8>) {
-        self.send(UserEvent::LoadRom(rom));
+    pub fn load_rom(&self, rom: Vec<u8>, is_zip: bool) {
+        self.send(UserEvent::LoadRom(rom, is_zip));
     }
 
     pub fn run_cpu(&self, millis: f32) {

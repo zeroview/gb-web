@@ -81,11 +81,18 @@
     manager.updateOptions();
   });
 
+  const zipMimeTypes = [
+    "application/zip",
+    "application/x-zip-compressed",
+    "application/x-zip",
+  ];
   let files: FileList | undefined = $state();
   $effect(() => {
     // Open selected file as byte array
     if (files) {
-      files[0].arrayBuffer().then(manager.loadRom);
+      let file = files[0];
+      let isZip = zipMimeTypes.includes(file.type);
+      files[0].arrayBuffer().then((rom) => manager.loadRom(rom, isZip));
     }
   });
 </script>
@@ -102,7 +109,7 @@
       <div class="menu-container">
         <input
           id="fileInput"
-          accept=".gb"
+          accept=".gb,.zip"
           type="file"
           bind:files
           style="display: none"

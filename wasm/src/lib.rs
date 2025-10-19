@@ -56,6 +56,8 @@ impl App {
             last_cpu_frame: 0,
         }
     }
+
+    fn load_rom(&mut self, rom: Vec<u8>) {}
 }
 
 impl ApplicationHandler<UserEvent> for App {
@@ -142,13 +144,36 @@ impl ApplicationHandler<UserEvent> for App {
                 renderer.update_options(&self.options);
                 self.renderer = Some(*renderer);
             }
-            UserEvent::LoadRom(rom) => {
+            UserEvent::LoadRom(file, is_zip) => {
+                let rom: Vec<u8> = if is_zip {
+                    use std::io::{BufReader, Cursor, Read};
+                    use std::path::Path;
+
+                    let mut rom_option = None;
+                    let mut archive = zip::ZipArchive::new(Cursor::new(&file[..])).unwrap();
+
+                    // Loop through files in zip to find ROM
+                    for i in 0..archive.len() {
+                        let archive_file = archive.by_index(i).unwrap();
+                        // Choose first file inside zip that either has no extension or .gb
+                        if Path::new(archive_file.name())
+                            .extension()
+                            .is_none_or(|ext| ext == "gb")
+                        {
+                            let buf = BufReader::new(archive_file);
+                            rom_option = Some(buf.bytes().map(|b| b.unwrap()).collect());
+                            break;
+                        }
+                    }
+                    rom_option.unwrap()
+                } else {
+                    file
+                };
                 let mut cpu = CPU::new(rom);
                 cpu.set_audio_sample_rate(self.audio.sample_rate);
                 let audio_consumer =
                     cpu.init_audio_buffer(self.audio.sample_capacity, self.audio.channels);
                 self.audio.init_playback(audio_consumer);
-
                 self.cpu = Some(cpu);
             }
             UserEvent::RunCPU(millis) => {

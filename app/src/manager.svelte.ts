@@ -10,14 +10,14 @@ export default class EmulatorManager {
   public options = new Options();
 
 
-  loadRom = (rom: ArrayBuffer) => {
+  loadRom = (rom: ArrayBuffer, isZip: boolean) => {
     if (!this.initialized) {
       this.proxy = spawn_event_loop();
       this.updateOptions();
       this.initialized = true;
     }
 
-    this.proxy?.load_rom(new Uint8Array(rom));
+    this.proxy?.load_rom(new Uint8Array(rom), isZip);
     this.toggle_execution();
   }
 
