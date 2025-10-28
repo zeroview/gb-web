@@ -55,9 +55,12 @@ pub struct EmulatorOptions {
     pub palette: Palette,
     pub speed: f32,
     pub volume: f32,
-    pub glow_strength: f32,
+    pub scale: i32,
+    pub display_glow_strength: f32,
+    pub background_glow_strength: f32,
     pub glow_iterations: usize,
     pub glow_radius: f32,
+    pub ambient_light: f32,
 }
 
 #[wasm_bindgen]
@@ -78,9 +81,12 @@ impl Default for EmulatorOptions {
             palette: Palette::default(),
             speed: 1.0,
             volume: 1.0,
-            glow_strength: 0.5,
-            glow_iterations: 8,
-            glow_radius: 1.0,
+            scale: 0,
+            display_glow_strength: 0.6,
+            background_glow_strength: 0.3,
+            glow_iterations: 5,
+            glow_radius: 0.5,
+            ambient_light: 0.3,
         }
     }
 }

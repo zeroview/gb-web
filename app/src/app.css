@@ -42,8 +42,9 @@ main {
   flex-direction: row;
   gap: 15px;
 }
+
 .menu-row p {
-  width: 200px;
+  width: 400px;
 }
 
 p {

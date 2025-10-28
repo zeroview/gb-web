@@ -62,7 +62,7 @@ impl CartridgeInfo {
                 _ => 0,
             }
         };
-        let title = std::str::from_utf8(&header[0x34..=0x3E])
+        let title = std::str::from_utf8(&header[0x34..=0x42])
             .unwrap_or_default()
             .to_string();
         Self {

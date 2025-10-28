@@ -1,25 +1,12 @@
 use super::*;
 
 #[repr(C)]
-#[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
+#[derive(Debug, Default, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct DisplayOptionsUniform {
     pub palette: Palette,
-    pub display_width: u32,
-    pub display_height: u32,
-    pub canvas_width: u32,
-    pub canvas_height: u32,
-}
-
-impl Default for DisplayOptionsUniform {
-    fn default() -> Self {
-        Self {
-            palette: Palette::default(),
-            display_width: 160,
-            display_height: 144,
-            canvas_width: 0,
-            canvas_height: 0,
-        }
-    }
+    pub scale: u32,
+    _pad: u32,
+    pub origin: [i32; 2],
 }
 
 #[repr(C)]
@@ -47,8 +34,16 @@ pub struct BlurOptionsUniform {
 #[repr(C)]
 #[derive(Debug, Default, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct FinalOptionsUniform {
-    pub glow_strength: f32,
-    _pad: [f32; 3],
+    pub glow_strength_display: f32,
+    pub glow_strength_background: f32,
+    pub ambient_light: f32,
+    _pad: u32,
+    pub display_origin: [i32; 2],
+    pub display_size: [u32; 2],
+    pub background_display_origin: [u32; 2],
+    pub background_display_size: [u32; 2],
+    pub viewport_size: [u32; 2],
+    _pad2: [u32; 2],
 }
 
 #[derive(Debug)]
@@ -122,22 +117,19 @@ impl<U> std::ops::DerefMut for UniformBuffer<U> {
 }
 
 #[derive(Debug)]
-pub struct FrameTexture {
+pub struct Texture {
     pub texture: wgpu::Texture,
     pub texture_view: wgpu::TextureView,
     pub bind_group: wgpu::BindGroup,
-    name: String,
-    bind_group_layout: wgpu::BindGroupLayout,
 }
 
-impl FrameTexture {
+impl Texture {
     pub fn new(
         device: &wgpu::Device,
         bind_group_layout: &wgpu::BindGroupLayout,
         size: &wgpu::Extent3d,
         name: &str,
     ) -> Self {
-        let layout = bind_group_layout.clone();
         let texture = device.create_texture(&wgpu::TextureDescriptor {
             label: Some(&format!("{name} Texture")),
             size: *size,
@@ -145,33 +137,11 @@ impl FrameTexture {
             sample_count: 1,
             dimension: wgpu::TextureDimension::D2,
             format: wgpu::TextureFormat::Rgba8UnormSrgb,
-            usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING,
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT
+                | wgpu::TextureUsages::TEXTURE_BINDING
+                | wgpu::TextureUsages::COPY_DST,
             view_formats: &[],
         });
-        let (texture_view, bind_group) = Self::get_components(&texture, device, &layout, name);
-
-        Self {
-            texture,
-            texture_view,
-            bind_group,
-            bind_group_layout: layout,
-            name: name.to_string(),
-        }
-    }
-
-    pub fn update(&mut self, device: &wgpu::Device) {
-        let (texture_view, bind_group) =
-            Self::get_components(&self.texture, device, &self.bind_group_layout, &self.name);
-        self.texture_view = texture_view;
-        self.bind_group = bind_group;
-    }
-
-    fn get_components(
-        texture: &wgpu::Texture,
-        device: &wgpu::Device,
-        bind_group_layout: &wgpu::BindGroupLayout,
-        name: &str,
-    ) -> (wgpu::TextureView, wgpu::BindGroup) {
         let texture_view = texture.create_view(&wgpu::TextureViewDescriptor::default());
         let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
             address_mode_u: wgpu::AddressMode::ClampToEdge,
@@ -196,6 +166,11 @@ impl FrameTexture {
             ],
             label: Some(&format!("{name} Bind Group")),
         });
-        (texture_view, bind_group)
+
+        Self {
+            texture,
+            texture_view,
+            bind_group,
+        }
     }
 }

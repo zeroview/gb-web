@@ -19,11 +19,13 @@ pub struct Renderer {
     blur_render_pipeline: wgpu::RenderPipeline,
     final_render_pipeline: wgpu::RenderPipeline,
 
-    display_texture: Option<FrameTexture>,
-    h_blur_texture: Option<FrameTexture>,
-    v_blur_texture: Option<FrameTexture>,
+    display_texture: Option<Texture>,
+    h_blur_texture: Option<Texture>,
+    v_blur_texture: Option<Texture>,
+    background_texture: Texture,
     texture_bind_group_layout: wgpu::BindGroupLayout,
 
+    scale_offset: i32,
     options: UniformBuffer<DisplayOptionsUniform>,
     display: UniformBuffer<DisplayBufferUniform>,
     blur_options: UniformBuffer<BlurOptionsUniform>,
@@ -181,7 +183,45 @@ impl Renderer {
             &[&texture_bind_group_layout, &blur_options.bind_group_layout],
         );
 
-        let final_options = UniformBuffer::<FinalOptionsUniform>::new(&device, "Final Options");
+        let mut final_options = UniformBuffer::<FinalOptionsUniform>::new(&device, "Final Options");
+
+        // Load background image into a byte array
+        let background_png = include_bytes!("background.png");
+        let background_image = image::load_from_memory(background_png).unwrap();
+        let background_rgba = background_image.to_rgba8();
+        final_options.background_display_origin = [284, 261];
+        final_options.background_display_size = [599, 548];
+        // Initialize background texture
+        let background_texture_size = wgpu::Extent3d {
+            width: background_rgba.width(),
+            height: background_rgba.height(),
+            depth_or_array_layers: 1,
+        };
+        let background_texture = Texture::new(
+            &device,
+            &texture_bind_group_layout,
+            &background_texture_size,
+            "Background",
+        );
+        queue.write_texture(
+            // Tells wgpu where to copy the pixel data
+            wgpu::TexelCopyTextureInfo {
+                texture: &background_texture.texture,
+                mip_level: 0,
+                origin: wgpu::Origin3d::ZERO,
+                aspect: wgpu::TextureAspect::All,
+            },
+            // The actual pixel data
+            &background_rgba,
+            // The layout of the texture
+            wgpu::TexelCopyBufferLayout {
+                offset: 0,
+                bytes_per_row: Some(4 * background_rgba.width()),
+                rows_per_image: Some(background_rgba.height()),
+            },
+            background_texture_size,
+        );
+
         // Initialize render pipeline for final composite pass
         let final_shader = device.create_shader_module(wgpu::include_wgsl!("final.wgsl"));
         let final_render_pipeline = Self::init_render_pipeline(
@@ -189,7 +229,11 @@ impl Renderer {
             &config,
             &final_shader,
             &[
+                // Display texture
                 &texture_bind_group_layout,
+                // Blur texture
+                &texture_bind_group_layout,
+                // Background texture
                 &texture_bind_group_layout,
                 &final_options.bind_group_layout,
             ],
@@ -210,8 +254,10 @@ impl Renderer {
             display_texture: None,
             h_blur_texture: None,
             v_blur_texture: None,
+            background_texture,
             texture_bind_group_layout,
 
+            scale_offset: 0,
             options,
             display,
             blur_options,
@@ -285,9 +331,6 @@ impl Renderer {
         // Run blur shader for iterations to blur the result of the display render pass onto a
         // texture
         for (i, uniform_bind_group) in blur_uniform_bind_groups.iter().enumerate() {
-            h_blur.update(&self.device);
-            v_blur.update(&self.device);
-
             // Choose texture view and texture bind group based on iteration count
             let (view, mut bind_group) = if i.is_multiple_of(2) {
                 (&v_blur.texture_view, &h_blur.bind_group)
@@ -347,9 +390,10 @@ impl Renderer {
             &self.display_texture.as_ref().unwrap().bind_group,
             &[],
         );
-        // Read blur result from vertically blurred texture
+        // Read final blur result from vertically blurred texture
         final_render_pass.set_bind_group(1, &v_blur.bind_group, &[]);
-        final_render_pass.set_bind_group(2, &self.final_options.bind_group, &[]);
+        final_render_pass.set_bind_group(2, &self.background_texture.bind_group, &[]);
+        final_render_pass.set_bind_group(3, &self.final_options.bind_group, &[]);
         final_render_pass.draw(0..6, 0..1);
         drop(final_render_pass);
         self.queue.submit(std::iter::once(encoder.finish()));
@@ -372,38 +416,61 @@ impl Renderer {
                 height,
                 depth_or_array_layers: 1,
             };
-            self.display_texture = Some(FrameTexture::new(
+            self.display_texture = Some(Texture::new(
                 &self.device,
                 &self.texture_bind_group_layout,
                 &texture_size,
                 "Display Texture",
             ));
-            self.h_blur_texture = Some(FrameTexture::new(
+            self.h_blur_texture = Some(Texture::new(
                 &self.device,
                 &self.texture_bind_group_layout,
                 &texture_size,
                 "Horizontal Blur Texture",
             ));
-            self.v_blur_texture = Some(FrameTexture::new(
+            self.v_blur_texture = Some(Texture::new(
                 &self.device,
                 &self.texture_bind_group_layout,
                 &texture_size,
                 "Vertical Blur Texture",
             ));
 
-            // Update option uniforms
-            self.options.canvas_width = width;
-            self.options.canvas_height = height;
+            // Calculate pixel scale as the possible largest integer scale
+            // which still fits display in both dimensions
+            let mut scale = (width / 160).min(height / 144);
+            // Apply option offset to scale
+            scale = (scale.saturating_add_signed(self.scale_offset)).max(1);
+            // Calculate size of the display
+            let display_size = [160 * scale, 144 * scale];
+            // Calculate top-left origin in pixel space for centered canvas
+            let display_origin = [
+                (width as i32 - display_size[0] as i32) / 2,
+                (height as i32 - display_size[1] as i32) / 2,
+            ];
+
+            // Update options
+            self.options.scale = scale;
+            self.options.origin = display_origin;
             self.options.update_buffer(&self.queue);
-            self.blur_options.resolution[0] = width as f32;
-            self.blur_options.resolution[1] = height as f32;
+            self.blur_options.resolution[0] = (width / scale) as f32;
+            self.blur_options.resolution[1] = (height / scale) as f32;
             self.blur_options.update_buffer(&self.queue);
+            self.final_options.display_origin = display_origin;
+            self.final_options.display_size = display_size;
+            self.final_options.viewport_size = [width, height];
+            self.final_options.update_buffer(&self.queue);
         }
     }
 
     pub fn update_options(&mut self, options: &EmulatorOptions) {
+        if self.scale_offset != options.scale {
+            self.scale_offset = options.scale;
+            self.resize(self.config.width, self.config.height);
+        }
         self.options.palette = options.palette;
-        self.final_options.glow_strength = options.glow_strength;
+        self.final_options.glow_strength_display = options.display_glow_strength;
+        self.final_options.glow_strength_background = options.background_glow_strength;
+        self.final_options.ambient_light = options.ambient_light;
         self.glow_iterations = options.glow_iterations;
         self.glow_radius = options.glow_radius;
         self.options.update_buffer(&self.queue);

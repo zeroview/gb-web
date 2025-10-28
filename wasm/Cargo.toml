@@ -28,6 +28,7 @@ pollster = "0.4"
 cpal = { version = "0.16.0", features = [ "wasm-bindgen" ] }
 ringbuf = "0.4.8"
 zip = { version = "6.0.0", default-features = false, features = [ "deflate" ]}
+image = { version = "0.25", default-features = false, features = [ "png" ]}
 
 [dev-dependencies]
 wasm-bindgen-test = "0.3.34"
