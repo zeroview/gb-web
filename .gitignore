@@ -1,5 +1,8 @@
+# Environment
+*.env
+
 # Testing ROMs
-roms/
+*.gb
 
 # Logs
 logs
@@ -17,6 +20,7 @@ dist-ssr
 *.local
 
 # Rust
+.cargo/
 /target
 **/*.rs.bk
 Cargo.lock
@@ -25,7 +29,7 @@ pkg/
 wasm-pack.log
 
 # Editor directories and files
-.vscode/*
+.vscode/
 .idea
 .DS_Store
 *.suo
