@@ -534,8 +534,8 @@ impl APU {
             div_apu: 0,
             last_div_bit: false,
             pan_options: PanRegister::from_bits_truncate(0),
-            left_volume: 0,
-            right_volume: 0,
+            left_volume: 1,
+            right_volume: 1,
 
             square_channel_1: SquareChannel::new(),
             square_channel_2: SquareChannel::new(),

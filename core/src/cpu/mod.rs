@@ -3,8 +3,8 @@ mod interrupts;
 mod readwrite;
 
 use super::*;
-pub use interrupts::*;
-pub use readwrite::*;
+pub(crate) use interrupts::*;
+pub(crate) use readwrite::*;
 
 /// The main processing unit
 #[allow(clippy::upper_case_acronyms)]

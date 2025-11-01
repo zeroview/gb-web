@@ -1,7 +1,7 @@
 use super::*;
 
 #[derive(Debug, Deserialize, Serialize, Clone, Copy, PartialEq)]
-pub struct InterruptFlag(u8);
+pub(crate) struct InterruptFlag(u8);
 
 bitflags! {
     impl InterruptFlag: u8 {
@@ -14,7 +14,7 @@ bitflags! {
 }
 
 #[derive(Deserialize, Serialize)]
-pub struct InterruptState {
+pub(crate) struct InterruptState {
     /// Master interrupt enable
     pub ime: bool,
     /// Interrupt enable flag
@@ -53,7 +53,7 @@ impl MemoryAccess for InterruptState {
 
 impl CPU {
     /// Sets corresponding interrupt flag to true
-    pub fn request_interrupt(&mut self, interrupt: InterruptFlag) {
+    pub(crate) fn request_interrupt(&mut self, interrupt: InterruptFlag) {
         self.istate.iflag.insert(interrupt);
     }
 
@@ -80,7 +80,7 @@ impl CPU {
     }
 
     /// Checks for interrupts and moves program flow to interrupt if needed
-    pub fn check_for_interrupt(&mut self) {
+    pub(crate) fn check_for_interrupt(&mut self) {
         let interrupt_requests = self.istate.ie.intersection(self.istate.iflag);
         if interrupt_requests.bits() > 0 {
             // Exit halt mode even if IME is disabled

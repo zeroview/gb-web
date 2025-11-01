@@ -76,6 +76,7 @@ impl CartridgeInfo {
     }
 }
 
+#[derive(Debug)]
 pub struct ROMValidationError {}
 
 impl std::fmt::Display for ROMValidationError {
@@ -104,7 +105,6 @@ impl Memory {
             return Err(ROMValidationError {});
         }
         let info = CartridgeInfo::from_header(&rom_file[0x0100..=0x014F]);
-        println!("{:?}", info);
         let mut mbc = MBC::init(info.clone());
         mbc.load_rom(rom_file);
 
@@ -122,6 +122,7 @@ impl MemoryAccess for Memory {
         match address {
             0x0000..=0x7FFF | 0xA000..=0xBFFF => self.mbc.read(address),
             0xC000..=0xDFFF => self.wram[(address - 0xC000) as usize],
+            0xE000..=0xFDFF => self.wram[(address - 0xE000) as usize],
             0xFF80..=0xFFFE => self.hram[(address - 0xFF80) as usize],
             _ => {
                 eprintln!("Memory reading not implemented for {:#06X}", address);
@@ -133,6 +134,7 @@ impl MemoryAccess for Memory {
         match address {
             0x0000..=0x7FFF | 0xA000..=0xBFFF => self.mbc.write(address, value),
             0xC000..=0xDFFF => self.wram[(address - 0xC000) as usize] = value,
+            0xE000..=0xFDFF => self.wram[(address - 0xE000) as usize] = value,
             0xFF80..=0xFFFE => self.hram[(address - 0xFF80) as usize] = value,
             _ => eprintln!(
                 "Memory writing not implemented for {:#06X}. Tried to write {:#04X}",
@@ -151,10 +153,8 @@ pub struct MBC {
     #[serde(skip_serializing, skip_deserializing)]
     pub rom: Vec<u8>,
     pub ram: Vec<u8>,
-    #[serde(skip_serializing, skip_deserializing)]
-    // pub save_ram: Option<MmapMut>,
-    rom_bank: u8,
-    ram_bank: u8,
+    rom_bank: usize,
+    ram_bank: usize,
     ram_enabled: bool,
     info: CartridgeInfo,
     /// Used only by MBC1
@@ -166,7 +166,6 @@ impl MBC {
         Self {
             rom: vec![],
             ram: vec![0; usize::from(0x2000 * info.ram_banks)],
-            // save_ram: None,
             rom_bank: 1,
             ram_bank: 0,
             ram_enabled: false,
@@ -180,15 +179,6 @@ impl MBC {
         self.rom = rom_file;
     }
 
-    // pub fn load_memory_map(&mut self, mut mmap: MmapMut, overwrite_mmap: bool) {
-    //     if overwrite_mmap {
-    //         mmap.clone_from_slice(&self.ram);
-    //     } else {
-    //         self.ram = mmap.to_vec();
-    //     }
-    //     self.save_ram = Some(mmap);
-    // }
-
     /// Returns value from memory at address
     /// Should handle addresses between $0000-$7FFF and $A000-$BFFF
     pub fn read(&self, address: u16) -> u8 {
@@ -196,6 +186,7 @@ impl MBC {
             MBCType::NoMBC => self.read_nombc(address),
             MBCType::MBC1 => self.read_mbc1(address),
             MBCType::MBC3 => self.read_mbc3(address),
+            MBCType::MBC5 => self.read_mbc5(address),
             _ => todo!("MBC type not supported"),
         }
     }
@@ -206,20 +197,23 @@ impl MBC {
             MBCType::NoMBC => self.write_nombc(address, value),
             MBCType::MBC1 => self.write_mbc1(address, value),
             MBCType::MBC3 => self.write_mbc3(address, value),
+            MBCType::MBC5 => self.write_mbc5(address, value),
             _ => todo!("MBC type not supported"),
         }
     }
 
     /// Used to mask bank number register value to wrap around
     /// based on maximum number of banks
-    fn mask_bank_number(&self, number: u8, bank_amount: u16) -> u8 {
+    fn mask_bank_number(&self, number: u8, bank_amount: u16) -> usize {
         // Calculate amount of bits needed to contain number
-        let bit_amount = (bank_amount as f32).log(2.0).ceil() as u8;
+        // Clamp result to 8, when bit amount is higher the higher bits are written to another
+        // register
+        let bit_amount = (bank_amount as f32).log(2.0).ceil().min(8.0) as usize;
         // Mask number with amount of bits
         if bit_amount == 0 {
             0
         } else {
-            number & (u8::MAX >> (8 - bit_amount))
+            (number as usize) & (0xFF >> (8 - bit_amount))
         }
     }
 
@@ -245,7 +239,7 @@ impl MBC {
                 // to the second ROM address range ($4000-$7FFF)
                 if address >= 0x4000 {
                     address -= 0x4000;
-                    address += (self.rom_bank as usize) * 0x4000;
+                    address += self.rom_bank * 0x4000;
                 }
                 // If cartridge has >512 KiB ROM, the 2-bit register that is also used to select RAM banks
                 // can be used to select one of four large banks of 512 KiB memory
@@ -258,7 +252,7 @@ impl MBC {
                         } else {
                             0b11
                         };
-                    address += 0x20 * high_address as usize * 0x4000
+                    address += 0x20 * high_address * 0x4000
                 }
 
                 if self.rom.len() <= address {
@@ -280,7 +274,7 @@ impl MBC {
                 // RAM banks can only be changed when using advanced banking mode
                 if self.advanced_banking {
                     address +=
-                        self.mask_bank_number(self.ram_bank, self.info.ram_banks) as usize * 0x2000;
+                        self.mask_bank_number(self.ram_bank as u8, self.info.ram_banks) * 0x2000;
                 }
 
                 if self.ram.len() <= address {
@@ -316,7 +310,7 @@ impl MBC {
                 self.rom_bank = masked;
             }
             // 2 bit bank register that is used to select both ROM and RAM banks
-            0x4000..=0x5FFF => self.ram_bank = value & 0b11,
+            0x4000..=0x5FFF => self.ram_bank = (value & 0b11) as usize,
             // Toggle between banking modes
             // The above register only has effect if this is set to true
             0x6000..=0x7FFF => self.advanced_banking = value & 0b1 > 0,
@@ -329,7 +323,7 @@ impl MBC {
                 address -= 0xA000;
                 // RAM banks can only be changed when using advanced banking mode
                 if self.advanced_banking && self.info.ram_banks > 1 {
-                    address += self.ram_bank as usize * 0x2000;
+                    address += self.ram_bank * 0x2000;
                 }
 
                 if self.ram.len() <= address {
@@ -342,9 +336,6 @@ impl MBC {
                     return;
                 }
                 self.ram[address] = value;
-                // if let Some(mmap) = self.save_ram.as_deref_mut() {
-                //     mmap[address] = value;
-                // }
             }
             _ => {}
         };
@@ -355,7 +346,7 @@ impl MBC {
         match address {
             0x0000..=0x3FFF => self.rom[address],
             0x4000..=0x7FFF => {
-                address += 0x4000 * ((self.rom_bank as usize) - 1);
+                address += 0x4000 * (self.rom_bank - 1);
 
                 if self.rom.len() <= address {
                     eprintln!(
@@ -372,7 +363,7 @@ impl MBC {
                     return 0xFF;
                 }
                 address -= 0xA000;
-                address += self.ram_bank as usize * 0x2000;
+                address += self.ram_bank * 0x2000;
 
                 if self.ram.len() <= address {
                     eprintln!(
@@ -390,18 +381,17 @@ impl MBC {
 
     fn write_mbc3(&mut self, address: u16, value: u8) {
         match address {
-            // Enable the RAM
+            // RAM enabled
             0x0000..=0x1FFF => self.ram_enabled = (value & 0x0F) == 0x0A,
-            // ROM bank register
+            // ROM bank number
             0x2000..=0x3FFF => {
                 let mut masked = self.mask_bank_number(value, self.info.rom_banks);
                 if masked == 0 {
                     masked = 1
                 };
                 self.rom_bank = masked;
-                // println!("Selected ROM bank {}", self.rom_bank);
             }
-            // 2 bit bank register that is used to select both ROM and RAM banks
+            // RAM bank number
             0x4000..=0x5FFF => {
                 if self.info.ram_banks != 0 {
                     self.ram_bank = self.mask_bank_number(value, self.info.ram_banks);
@@ -414,7 +404,7 @@ impl MBC {
                 }
                 let mut address = address as usize;
                 address -= 0xA000;
-                address += self.ram_bank as usize * 0x2000;
+                address += self.ram_bank * 0x2000;
 
                 if self.ram.len() <= address {
                     eprintln!(
@@ -426,9 +416,85 @@ impl MBC {
                     return;
                 }
                 self.ram[address] = value;
-                // if let Some(mmap) = self.save_ram.as_deref_mut() {
-                //     mmap[address] = value;
-                // }
+            }
+            _ => {}
+        };
+    }
+
+    fn read_mbc5(&self, address: u16) -> u8 {
+        let mut address = address as usize;
+        match address {
+            0x0000..=0x3FFF => self.rom[address],
+            0x4000..=0x7FFF => {
+                address = address.saturating_add_signed(0x4000 * ((self.rom_bank as isize) - 1));
+
+                if self.rom.len() <= address {
+                    eprintln!(
+                        "Tried to access ROM at {:#06X}, but length is only {:#06X}",
+                        address,
+                        self.rom.len()
+                    );
+                    return 0;
+                }
+                self.rom[address]
+            }
+            0xA000..=0xBFFF => {
+                if !self.ram_enabled {
+                    return 0xFF;
+                }
+                address -= 0xA000;
+                address += self.ram_bank * 0x2000;
+
+                if self.ram.len() <= address {
+                    eprintln!(
+                        "Tried to access external RAM at {:#06X}, but RAM size is only {:#06X}",
+                        address,
+                        self.ram.len()
+                    );
+                    return 0xFF;
+                }
+                self.ram[address]
+            }
+            _ => 0xFF,
+        }
+    }
+
+    fn write_mbc5(&mut self, address: u16, value: u8) {
+        match address {
+            // RAM enabled
+            0x0000..=0x1FFF => self.ram_enabled = (value & 0x0F) == 0x0A,
+            // 8 least significant bits of ROM bank number
+            0x2000..=0x2FFF => {
+                let masked = self.mask_bank_number(value, self.info.rom_banks);
+                self.rom_bank = masked;
+            }
+            // 9th bit of ROM bank number
+            0x3000..=0x3FFF => self.rom_bank |= ((value & 1) as usize) << 8,
+            // RAM bank number
+            0x4000..=0x5FFF => {
+                if self.info.ram_banks != 0 {
+                    self.ram_bank = self.mask_bank_number(value, self.info.ram_banks);
+                }
+            }
+            // Write to RAM
+            0xA000..=0xBFFF => {
+                if !self.ram_enabled {
+                    return;
+                }
+                let mut address = address as usize;
+                address -= 0xA000;
+                address += self.ram_bank * 0x2000;
+
+                if self.ram.len() <= address {
+                    eprintln!(
+                        "Tried to write {:#04X} into external RAM at {:#06X}, but RAM size is only {:#06X}",
+                        value,
+                        address,
+                        self.ram.len()
+                    );
+                    return;
+                }
+                self.ram[address] = value;
             }
             _ => {}
         };

@@ -70,7 +70,7 @@ impl OAMSprite {
             y: data[0],
             x: data[1],
             tile_index: data[2],
-            flags: SpriteFlags::from_bits_truncate(data[3]),
+            flags: SpriteFlags::from_bits_retain(data[3]),
         }
     }
 }
@@ -90,7 +90,7 @@ impl OAM {
     }
 
     pub fn read(&self, address: u16) -> u8 {
-        let sprite = self.sprites[usize::from(address / 4)];
+        let sprite = &self.sprites[usize::from(address / 4)];
         match address % 4 {
             0 => sprite.y,
             1 => sprite.x,
@@ -101,12 +101,12 @@ impl OAM {
     }
 
     pub fn write(&mut self, address: u16, value: u8) {
-        let mut sprite = self.sprites[usize::from(address / 4)];
+        let sprite = &mut self.sprites[usize::from(address / 4)];
         match address % 4 {
             0 => sprite.y = value,
             1 => sprite.x = value,
             2 => sprite.tile_index = value,
-            3 => sprite.flags = SpriteFlags::from_bits_truncate(value),
+            3 => sprite.flags = SpriteFlags::from_bits_retain(value),
             _ => unreachable!(),
         }
     }
@@ -195,6 +195,8 @@ pub struct PPU {
     pub win_x: u8,
     /// Window position Y
     pub win_y: u8,
+    /// Window line counter
+    pub win_line: u8,
     /// The current palettes used for rendering
     pub palettes: DMGPalettes,
     /// Currently requested interrupt.
@@ -223,6 +225,7 @@ impl PPU {
             bg_y: 0,
             win_x: 0,
             win_y: 0,
+            win_line: 0,
             palettes: DMGPalettes {
                 bg: 0,
                 obj0: 0,
@@ -257,17 +260,24 @@ impl PPU {
 
             match self.ly {
                 0..=143 => {
+                    // Draw new line
                     self.update_mode(OAMScan);
                     self.draw_scanline(self.ly)
                 }
                 144 => {
+                    // Reset line counter
+                    self.win_line = 0;
+                    // Send VBlank interrupt
                     self.interrupt_request.insert(InterruptFlag::VBLANK);
                     self.update_mode(VBlank);
+                    // Swap double buffer for rendering new frame
                     self.display.swap();
                 }
                 153 => {
+                    // Start drawing new frame
                     self.ly = 0;
                     self.update_mode(OAMScan);
+                    // End drawing delay after PPU was enabled again
                     if self.state == Starting {
                         self.state = Active;
                     }
@@ -357,9 +367,9 @@ impl PPU {
         let obj_y = y + 16;
 
         let mut sprites: Vec<OAMSprite> = vec![];
-        for sprite in self.oam.sprites {
+        for sprite in &self.oam.sprites {
             if obj_y < sprite.y.saturating_add(sprite_height) && obj_y >= sprite.y {
-                sprites.push(sprite);
+                sprites.push(*sprite);
                 // There's a limit of 10 objects per scanline
                 if sprites.len() == 10 {
                     break;
@@ -402,12 +412,16 @@ impl PPU {
                         if sprite.flags.intersects(SpriteFlags::Y_FLIP) {
                             tile_y = (sprite_height as i16) - 1 - tile_y;
                         }
+
                         let mut tile_index = sprite.tile_index;
-                        // If sprite height is set to 16,
-                        // read bottom pixels from the tile at next index
-                        if tile_y >= 8 {
-                            tile_y -= 8;
-                            tile_index += 1;
+                        if self.lcdc.intersects(LCDControl::OBJ_SIZE) {
+                            // 8x16 objects ignore last bit of tile index
+                            tile_index &= 0b1111_1110;
+                            // Read bottom pixels of 8x16 object from the tile at next index
+                            if tile_y >= 8 {
+                                tile_y -= 8;
+                                tile_index += 1;
+                            }
                         }
 
                         let col_id =
@@ -458,12 +472,12 @@ impl PPU {
             {
                 let tile = self.get_tile_index(
                     x - self.win_x,
-                    y - self.win_y,
+                    self.win_line,
                     self.lcdc.intersects(LCDControl::WINDOW_TILE_MAP),
                 );
                 self.get_tile_color(
                     x - self.win_x,
-                    y - self.win_y,
+                    self.win_line,
                     tile,
                     !self.lcdc.intersects(LCDControl::TILE_DATA_AREA),
                 )
@@ -490,6 +504,10 @@ impl PPU {
                 let col = self.get_palette_color(col_id, self.palettes.bg);
                 self.set_pixel(x, y, col);
             }
+        }
+        // Increment line counter if window was displayed on this scanline
+        if self.lcdc.intersects(LCDControl::WINDOW_ENABLE) && self.win_x < 160 && self.win_y <= y {
+            self.win_line += 1;
         }
     }
 

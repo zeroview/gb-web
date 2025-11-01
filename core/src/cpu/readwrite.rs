@@ -1,7 +1,7 @@
 use super::*;
 
 /// Trait implemented by objects whose registers can be accessed from the address bus
-pub trait MemoryAccess {
+pub(crate) trait MemoryAccess {
     /// Returns value from given memory address
     fn mem_read(&self, address: u16) -> u8;
     /// Writes given value to given memory address
@@ -10,10 +10,10 @@ pub trait MemoryAccess {
 
 impl CPU {
     /// Reads from given memory address
-    pub fn read(&self, address: u16) -> u8 {
+    pub(crate) fn read(&self, address: u16) -> u8 {
         match address {
             // ROM, external and work RAM, high RAM
-            0x0000..=0x7FFF | 0xA000..=0xDFFF | 0xFF80..=0xFFFE => self.mem.mem_read(address),
+            0x0000..=0x7FFF | 0xA000..=0xFDFF | 0xFF80..=0xFFFE => self.mem.mem_read(address),
             // VRAM, OAM, LCD I/O
             0x8000..=0x9FFF | 0xFE00..=0xFE9F | 0xFF40..=0xFF4B => self.ppu.mem_read(address),
             // Audio I/O registers
@@ -29,15 +29,15 @@ impl CPU {
     }
 
     /// Reads 16-bit value from given memory address
-    pub fn read_16(&self, address: u16) -> u16 {
+    pub(crate) fn read_16(&self, address: u16) -> u16 {
         u16::from_le_bytes([self.read(address), self.read(address + 1)])
     }
 
     /// Writes to given memory address
-    pub fn write(&mut self, address: u16, value: u8) {
+    pub(crate) fn write(&mut self, address: u16, value: u8) {
         match address {
-            // ROM, external and work RAM, high RAM
-            0x0000..=0x7FFF | 0xA000..=0xDFFF | 0xFF80..=0xFFFE => {
+            // ROM, external, work and echo RAM, high RAM
+            0x0000..=0x7FFF | 0xA000..=0xFDFF | 0xFF80..=0xFFFE => {
                 self.mem.mem_write(address, value)
             }
             // VRAM, OAM, LCD I/O
@@ -58,7 +58,7 @@ impl CPU {
 
     /// Returns the immediate 8-bit operand from memory.
     /// Increments program counter and cycles the system for one M-cycle
-    pub fn read_operand(&mut self) -> u8 {
+    pub(crate) fn read_operand(&mut self) -> u8 {
         self.cycle(1);
         self.reg.pc = self.reg.pc.wrapping_add(1);
         self.read(self.reg.pc)
@@ -66,7 +66,7 @@ impl CPU {
 
     /// Returns the immediate 16-bit operand from memory.
     /// Increments program counter and cycles the system for two M-cycles
-    pub fn read_operand_16(&mut self) -> u16 {
+    pub(crate) fn read_operand_16(&mut self) -> u16 {
         self.cycle(2);
         self.reg.pc = self.reg.pc.wrapping_add(2);
         self.read_16(self.reg.pc - 1)
@@ -74,7 +74,7 @@ impl CPU {
 
     /// Pops word from memory stack and increments stack pointer.
     /// Also cycles system for two M-cycles
-    pub fn pop(&mut self) -> u16 {
+    pub(crate) fn pop(&mut self) -> u16 {
         self.cycle(2);
         let val = self.read_16(self.reg.sp);
         self.reg.sp = self.reg.sp.wrapping_add(2);
@@ -83,7 +83,7 @@ impl CPU {
 
     /// Pushes word into memory stack and decrements stack pointer
     /// Also cycles system for two M-cycles
-    pub fn push(&mut self, value: u16) {
+    pub(crate) fn push(&mut self, value: u16) {
         self.cycle(2);
         let bytes = value.to_le_bytes();
         self.reg.sp = self.reg.sp.wrapping_sub(2);
@@ -92,7 +92,7 @@ impl CPU {
     }
 
     /// Performs an OAM DMA transfer, which copies memory from given source address to OAM
-    pub fn oam_dma(&mut self, address: u8) {
+    pub(crate) fn oam_dma(&mut self, address: u8) {
         let source_address = (address as u16) * 0x100;
         for sprite_index in 0..40 {
             let sprite_address = source_address + (sprite_index * 4);
