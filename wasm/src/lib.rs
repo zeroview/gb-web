@@ -16,6 +16,7 @@ mod proxy;
 use proxy::*;
 
 const CANVAS_ID: &str = "canvas";
+const EVENT_LISTENER_ID: &str = "eventListener";
 
 #[wasm_bindgen]
 pub fn spawn_event_loop() -> Result<Proxy, JsValue> {
@@ -37,6 +38,7 @@ pub fn spawn_event_loop() -> Result<Proxy, JsValue> {
 pub struct App {
     window: web_sys::Window,
     proxy: Option<winit::event_loop::EventLoopProxy<UserEvent>>,
+    event_target: Option<web_sys::Element>,
     renderer: Option<Renderer>,
     options: EmulatorOptions,
     audio: AudioHandler,
@@ -50,6 +52,7 @@ impl App {
         Self {
             window: web_sys::window().unwrap(),
             proxy: Some(event_loop.create_proxy()),
+            event_target: None,
             renderer: None,
             options: EmulatorOptions::default(),
             audio: AudioHandler::new(),
@@ -57,6 +60,20 @@ impl App {
             cpu: None,
             last_cpu_frame: 0,
         }
+    }
+
+    fn get_document() -> web_sys::Document {
+        web_sys::window().unwrap_throw().document().unwrap_throw()
+    }
+
+    fn send_event(&self, event_name: &str, detail: JsValue) -> Result<(), JsValue> {
+        if let Some(target) = &self.event_target {
+            let init = web_sys::CustomEventInit::new();
+            init.set_detail(&detail);
+            let event = web_sys::CustomEvent::new_with_event_init_dict(event_name, &init)?;
+            target.dispatch_event(&event.into())?;
+        }
+        Ok(())
     }
 }
 
@@ -68,8 +85,8 @@ impl ApplicationHandler<UserEvent> for App {
         use wasm_bindgen::JsCast;
         use winit::platform::web::WindowAttributesExtWebSys;
 
-        let window = web_sys::window().unwrap_throw();
-        let document = window.document().unwrap_throw();
+        let document = Self::get_document();
+        self.event_target = document.get_element_by_id(EVENT_LISTENER_ID);
         let canvas = document.get_element_by_id(CANVAS_ID).unwrap_throw();
         let html_canvas_element = canvas.unchecked_into();
         window_attributes = window_attributes.with_canvas(Some(html_canvas_element));
@@ -177,11 +194,8 @@ impl ApplicationHandler<UserEvent> for App {
                 if let Some(rom) = rom {
                     match CPU::new(rom) {
                         Ok(mut cpu) => {
-                            // Update document title based on ROM header
-                            let document =
-                                web_sys::window().unwrap_throw().document().unwrap_throw();
-                            document
-                                .set_title(&format!("{} - DMG-2025", cpu.get_cartridge_title()));
+                            let _ = self
+                                .send_event("romloaded", JsValue::from(cpu.get_cartridge_title()));
                             // Initialize audio playback
                             cpu.set_audio_sample_rate(self.audio.sample_rate);
                             let audio_consumer = cpu
@@ -190,11 +204,12 @@ impl ApplicationHandler<UserEvent> for App {
                             self.cpu = Some(cpu);
                         }
                         Err(e) => {
-                            let _ = self.window.alert_with_message(&e.to_string());
+                            let _ = self.send_event("romloadfailed", JsValue::from(e.to_string()));
                         }
                     }
                 } else {
-                    let _ = self.window.alert_with_message("Zip archive is invalid");
+                    let _ =
+                        self.send_event("romloadfailed", JsValue::from("Zip archive is invalid"));
                 }
             }
             UserEvent::RunCPU(millis) => {

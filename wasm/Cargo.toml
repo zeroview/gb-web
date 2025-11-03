@@ -18,6 +18,8 @@ web-sys = { version = "0.3", features = [
     "Document",
     "Window",
     "Element",
+    "CustomEvent",
+    "CustomEventInit"
 ]}
 serde = {version = "1.0.217", features = ["derive"]}
 bytemuck = { version = "1.16", features = [ "derive" ] }

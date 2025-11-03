@@ -23,7 +23,7 @@ pub struct CPU {
 }
 
 impl CPU {
-    pub fn new(rom_file: Vec<u8>) -> Result<Self, ROMValidationError> {
+    pub fn new(rom_file: Vec<u8>) -> Result<Self, MemoryInitializationError> {
         let mem = Memory::new(rom_file)?;
         Ok(Self {
             mem,

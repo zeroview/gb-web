@@ -101,11 +101,17 @@ main {
   flex-direction: column;
   justify-content: center;
   align-items: start;
-
 }
 
 .back {
   margin-bottom: 1rem;
+}
+
+.popup {
+  position: absolute;
+  z-index: 1;
+  bottom: 1rem;
+  left: 2rem;
 }
 
 p {

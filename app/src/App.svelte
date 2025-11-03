@@ -3,7 +3,8 @@
   import MenuSlider from "./MenuSlider.svelte";
   import EmulatorManager from "./manager.svelte";
   import { Color, Palette } from "DMG-2025";
-  import { fade } from "svelte/transition";
+  import { fade, fly } from "svelte/transition";
+  import { onMount } from "svelte";
 
   let manager = new EmulatorManager();
   let browserVisible = $state(false);
@@ -153,6 +154,34 @@
       files[0].arrayBuffer().then((rom) => manager.loadRom(rom, isZip));
     }
   });
+
+  let popupVisible = $state(false);
+  let popupText = $state("");
+  function showMessage(msg: string) {
+    popupText = msg;
+    popupVisible = true;
+    setTimeout(() => {
+      popupVisible = false;
+    }, 3000);
+  }
+
+  let eventListener: HTMLElement;
+  onMount(() => {
+    if (eventListener) {
+      eventListener.addEventListener("romloaded", (e) => {
+        const event = e as CustomEvent;
+        document.title = `${event.detail} - DMG-2025`;
+        console.info("Successfully loaded ROM");
+        manager.toggle_execution();
+      });
+      eventListener.addEventListener("romloadfailed", (e) => {
+        const event = e as CustomEvent;
+        let msg = `Failed to load ROM: ${event.detail}`;
+        console.error(msg);
+        showMessage(msg);
+      });
+    }
+  });
 </script>
 
 <svelte:window
@@ -161,6 +190,16 @@
 />
 
 <main>
+  <p id="eventListener" bind:this={eventListener}></p>
+  {#if popupVisible}
+    <p
+      class="popup"
+      in:fly={{ y: 30, duration: 300 }}
+      out:fade={{ duration: 1000 }}
+    >
+      {popupText}
+    </p>
+  {/if}
   <canvas id="canvas" tabindex="-1"></canvas>
   {#if !manager.running}
     <div class="menu" transition:fade={{ duration: 100 }}>

@@ -62,7 +62,7 @@ impl CPU {
                             0x00 => {}
                             // STOP
                             0x10 => {
-                                eprintln!("Tried to STOP");
+                                log::warn!("Tried to run STOP instruction");
                             }
                             // JR
                             _ => {
@@ -210,7 +210,7 @@ impl CPU {
                                     self.reg.f.remove(FlagReg::HALF_CARRY);
                                     self.reg.f.insert(FlagReg::CARRY);
                                 }
-                                _ => panic!("Invalid instruction: {:#04X}", opcode),
+                                _ => log::error!("Invalid instruction: {:#04X}", opcode),
                             };
                         }
                         0x8 => {
@@ -275,10 +275,10 @@ impl CPU {
                                     self.reg.f.remove(FlagReg::HALF_CARRY);
                                     self.reg.f.toggle(FlagReg::CARRY);
                                 }
-                                _ => panic!("Invalid instruction: {:#04X}", opcode),
+                                _ => log::error!("Invalid instruction: {:#04X}", opcode),
                             };
                         }
-                        _ => panic!("Invalid instruction: {:#04X}", opcode),
+                        _ => log::error!("Invalid instruction: {:#04X}", opcode),
                     }
                 }
                 // Similarly implemented 8-bit loading and arithmetic operations
@@ -318,7 +318,7 @@ impl CPU {
                         0xB0..=0xB7 => self.or_a(val),
                         // CP
                         0xB8..=0xBF => self.sub_a(val, false, false),
-                        _ => panic!("Invalid instruction: {:#04X}", opcode),
+                        _ => log::error!("Invalid instruction: {:#04X}", opcode),
                     }
                 }
                 // HALT
@@ -340,7 +340,10 @@ impl CPU {
                                     0x0 => 0xFF00u16 + self.read_operand() as u16,
                                     0x2 => 0xFF00u16 + self.reg.c as u16,
                                     0xA => self.read_operand_16(),
-                                    _ => panic!(),
+                                    _ => {
+                                        log::error!("Invalid instruction: {:#04X}", opcode);
+                                        0
+                                    }
                                 };
                                 if opcode & 0xF0 == 0xE0 {
                                     self.write(address, self.reg.a);
@@ -376,7 +379,7 @@ impl CPU {
                                             self.cycle(1);
                                         }
                                     }
-                                    _ => panic!(),
+                                    _ => log::error!("Invalid instruction: {:#04X}", opcode),
                                 }
                             }
                         }
@@ -439,7 +442,10 @@ impl CPU {
                                 0xEF => 0x28,
                                 0xF7 => 0x30,
                                 0xFF => 0x38,
-                                _ => panic!(),
+                                _ => {
+                                    log::error!("Invalid instruction: {:#04X}", opcode);
+                                    0
+                                }
                             };
                             self.reg.pc = address;
                             self.cycle(1);
@@ -508,7 +514,7 @@ impl CPU {
                                 self.reg.sp = self.reg.read_16(&Reg16::HL);
                                 self.cycle(1);
                             }
-                            _ => panic!("Invalid instruction: {:#04X}", opcode),
+                            _ => log::error!("Invalid instruction: {:#04X}", opcode),
                         },
                         0xB => {
                             // EI
@@ -520,7 +526,7 @@ impl CPU {
                                 self.arithmetic();
                             }
                         }
-                        _ => panic!("Invalid instruction: {:#04X}", opcode),
+                        _ => log::error!("Invalid instruction: {:#04X}", opcode),
                     }
                 }
             };
@@ -590,7 +596,10 @@ impl CPU {
                     0x80..=0xBF => val & !mask,
                     // SET
                     0xC0..=0xFF => val | mask,
-                    _ => panic!(),
+                    _ => {
+                        log::error!("Invalid instruction: {:#04X}", 0xCB00 | (opcode as u16));
+                        0
+                    }
                 }
             }
         };

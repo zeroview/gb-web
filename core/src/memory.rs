@@ -10,6 +10,8 @@ pub enum MBCType {
     MBC5,
     MBC6,
     MBC7,
+    HuC3,
+    HuC1,
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
@@ -40,6 +42,8 @@ impl CartridgeInfo {
             0x19..=0x1E => MBCType::MBC5,
             0x20 => MBCType::MBC6,
             0x22 => MBCType::MBC7,
+            0xFE => MBCType::HuC3,
+            0xFF => MBCType::HuC1,
             _ => MBCType::NoMBC,
         };
         let has_ram = matches!(
@@ -50,7 +54,7 @@ impl CartridgeInfo {
             header[0x47],
             0x03 | 0x06 | 0x0D | 0x0F | 0x10 | 0x13 | 0x1B | 0x1E | 0x22
         );
-        let rom_banks = 2u16.saturating_pow((1 + header[0x48]) as u32);
+        let rom_banks = 2u16.saturating_pow(1 + (header[0x48] as u32));
         let ram_banks = if !has_ram {
             0
         } else {
@@ -77,11 +81,30 @@ impl CartridgeInfo {
 }
 
 #[derive(Debug)]
-pub struct ROMValidationError {}
+pub enum MemoryInitializationErrorType {
+    NoHeader,
+    UnimplementedMBC(MBCType),
+}
 
-impl std::fmt::Display for ROMValidationError {
+#[derive(Debug)]
+pub struct MemoryInitializationError {
+    error_type: MemoryInitializationErrorType,
+}
+
+impl std::fmt::Display for MemoryInitializationError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "ROM header is invalid")
+        match self.error_type {
+            MemoryInitializationErrorType::NoHeader => {
+                write!(f, "ROM doesn't contain header")
+            }
+            MemoryInitializationErrorType::UnimplementedMBC(mbc) => {
+                write!(
+                    f,
+                    "MBC type {:?} isn't yet implemented in this emulator. Sorry!",
+                    mbc
+                )
+            }
+        }
     }
 }
 
@@ -96,15 +119,21 @@ pub struct Memory {
 }
 
 impl Memory {
-    /// https://gbdev.io/pandocs/The_Cartridge_Header.html#0104-0133--nintendo-logo
-    const LOGO_DUMP: &[u8; 48] = include_bytes!("logo_dump");
-
-    pub fn new(rom_file: Vec<u8>) -> Result<Self, ROMValidationError> {
-        // Return error if ROM file is invalid
-        if &rom_file[0x0104..=0x0133] != Self::LOGO_DUMP {
-            return Err(ROMValidationError {});
+    pub fn new(rom_file: Vec<u8>) -> Result<Self, MemoryInitializationError> {
+        if rom_file.len() < 0x014F {
+            return Err(MemoryInitializationError {
+                error_type: MemoryInitializationErrorType::NoHeader,
+            });
         }
         let info = CartridgeInfo::from_header(&rom_file[0x0100..=0x014F]);
+        if !matches!(
+            info.mbc,
+            MBCType::NoMBC | MBCType::MBC1 | MBCType::MBC3 | MBCType::MBC5
+        ) {
+            return Err(MemoryInitializationError {
+                error_type: MemoryInitializationErrorType::UnimplementedMBC(info.mbc),
+            });
+        }
         let mut mbc = MBC::init(info.clone());
         mbc.load_rom(rom_file);
 
@@ -124,10 +153,7 @@ impl MemoryAccess for Memory {
             0xC000..=0xDFFF => self.wram[(address - 0xC000) as usize],
             0xE000..=0xFDFF => self.wram[(address - 0xE000) as usize],
             0xFF80..=0xFFFE => self.hram[(address - 0xFF80) as usize],
-            _ => {
-                eprintln!("Memory reading not implemented for {:#06X}", address);
-                0
-            }
+            _ => 0,
         }
     }
     fn mem_write(&mut self, address: u16, value: u8) {
@@ -136,10 +162,7 @@ impl MemoryAccess for Memory {
             0xC000..=0xDFFF => self.wram[(address - 0xC000) as usize] = value,
             0xE000..=0xFDFF => self.wram[(address - 0xE000) as usize] = value,
             0xFF80..=0xFFFE => self.hram[(address - 0xFF80) as usize] = value,
-            _ => eprintln!(
-                "Memory writing not implemented for {:#06X}. Tried to write {:#04X}",
-                address, value
-            ),
+            _ => {}
         }
     }
 }
@@ -187,7 +210,7 @@ impl MBC {
             MBCType::MBC1 => self.read_mbc1(address),
             MBCType::MBC3 => self.read_mbc3(address),
             MBCType::MBC5 => self.read_mbc5(address),
-            _ => todo!("MBC type not supported"),
+            _ => todo!("MBC type {:?} not supported", self.info.mbc),
         }
     }
     /// Writes value into memory or register
@@ -198,7 +221,7 @@ impl MBC {
             MBCType::MBC1 => self.write_mbc1(address, value),
             MBCType::MBC3 => self.write_mbc3(address, value),
             MBCType::MBC5 => self.write_mbc5(address, value),
-            _ => todo!("MBC type not supported"),
+            _ => todo!("MBC type {:?} not supported", self.info.mbc),
         }
     }
 
@@ -256,7 +279,7 @@ impl MBC {
                 }
 
                 if self.rom.len() <= address {
-                    eprintln!(
+                    log::error!(
                         "Tried to access ROM at {:#06X}, but length is only {:#06X}",
                         address,
                         self.rom.len()
@@ -278,8 +301,8 @@ impl MBC {
                 }
 
                 if self.ram.len() <= address {
-                    eprintln!(
-                        "Tried to access external RAM at {:#06X}, but RAM size is only {:#06X}",
+                    log::error!(
+                        "Tried to access RAM at {:#06X}, but RAM size is only {:#06X}",
                         address,
                         self.ram.len()
                     );
@@ -327,8 +350,8 @@ impl MBC {
                 }
 
                 if self.ram.len() <= address {
-                    eprintln!(
-                        "Tried to write {:#04X} into external RAM at {:#06X}, but RAM size is only {:#06X}",
+                    log::error!(
+                        "Tried to write {:#04X} into RAM at {:#06X}, but RAM size is only {:#06X}",
                         value,
                         address,
                         self.ram.len()
@@ -349,7 +372,7 @@ impl MBC {
                 address += 0x4000 * (self.rom_bank - 1);
 
                 if self.rom.len() <= address {
-                    eprintln!(
+                    log::error!(
                         "Tried to access ROM at {:#06X}, but length is only {:#06X}",
                         address,
                         self.rom.len()
@@ -366,8 +389,8 @@ impl MBC {
                 address += self.ram_bank * 0x2000;
 
                 if self.ram.len() <= address {
-                    eprintln!(
-                        "Tried to access external RAM at {:#06X}, but RAM size is only {:#06X}",
+                    log::error!(
+                        "Tried to access RAM at {:#06X}, but RAM size is only {:#06X}",
                         address,
                         self.ram.len()
                     );
@@ -407,8 +430,8 @@ impl MBC {
                 address += self.ram_bank * 0x2000;
 
                 if self.ram.len() <= address {
-                    eprintln!(
-                        "Tried to write {:#04X} into external RAM at {:#06X}, but RAM size is only {:#06X}",
+                    log::error!(
+                        "Tried to write {:#04X} into RAM at {:#06X}, but RAM size is only {:#06X}",
                         value,
                         address,
                         self.ram.len()
@@ -429,7 +452,7 @@ impl MBC {
                 address = address.saturating_add_signed(0x4000 * ((self.rom_bank as isize) - 1));
 
                 if self.rom.len() <= address {
-                    eprintln!(
+                    log::error!(
                         "Tried to access ROM at {:#06X}, but length is only {:#06X}",
                         address,
                         self.rom.len()
@@ -446,8 +469,8 @@ impl MBC {
                 address += self.ram_bank * 0x2000;
 
                 if self.ram.len() <= address {
-                    eprintln!(
-                        "Tried to access external RAM at {:#06X}, but RAM size is only {:#06X}",
+                    log::error!(
+                        "Tried to access RAM at {:#06X}, but RAM size is only {:#06X}",
                         address,
                         self.ram.len()
                     );
@@ -486,8 +509,8 @@ impl MBC {
                 address += self.ram_bank * 0x2000;
 
                 if self.ram.len() <= address {
-                    eprintln!(
-                        "Tried to write {:#04X} into external RAM at {:#06X}, but RAM size is only {:#06X}",
+                    log::error!(
+                        "Tried to write {:#04X} into RAM at {:#06X}, but RAM size is only {:#06X}",
                         value,
                         address,
                         self.ram.len()

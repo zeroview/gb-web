@@ -18,7 +18,6 @@ export default class EmulatorManager {
     }
 
     this.proxy?.load_rom(new Uint8Array(rom), isZip);
-    this.toggle_execution();
   }
 
   toggle_execution = () => {

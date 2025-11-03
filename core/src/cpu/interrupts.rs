@@ -38,7 +38,7 @@ impl MemoryAccess for InterruptState {
         match address {
             0xFF0F => self.iflag.bits(),
             0xFFFF => self.ie.bits(),
-            _ => panic!(),
+            _ => unreachable!(),
         }
     }
 
@@ -46,7 +46,7 @@ impl MemoryAccess for InterruptState {
         match address {
             0xFF0F => self.iflag = InterruptFlag::from_bits_truncate(value),
             0xFFFF => self.ie = InterruptFlag::from_bits_truncate(value),
-            _ => panic!(),
+            _ => unreachable!(),
         }
     }
 }
@@ -68,7 +68,7 @@ impl CPU {
             InterruptFlag::TIMER => 0x50,
             InterruptFlag::SERIAL => 0x58,
             InterruptFlag::JOYPAD => 0x60,
-            _ => panic!(),
+            _ => unreachable!(),
         };
         // CPU waits for 2 M-cycles (for some reason)
         self.cycle(2);
