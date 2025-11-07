@@ -32,6 +32,7 @@
     }
   },
   "dependencies": {
-    "DMG-2025": "file:wasm/pkg"
+    "DMG-2025": "file:wasm/pkg",
+    "fuse.js": "^7.1.0"
   }
 }

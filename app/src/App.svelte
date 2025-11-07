@@ -204,12 +204,7 @@
   {#if !manager.running}
     <div class="menu" transition:fade={{ duration: 100 }}>
       {#if browserVisible}
-        <div class="browser-container">
-          <button class="back" onclick={() => (browserVisible = false)}
-            >{"< Back"}</button
-          >
-          <Browser {manager} />
-        </div>
+        <Browser {manager} onback={() => (browserVisible = false)} />
       {:else}
         <div class="menu-container">
           <input
