@@ -262,7 +262,8 @@ impl PPU {
                 0..=143 => {
                     // Draw new line
                     self.update_mode(OAMScan);
-                    self.draw_scanline(self.ly)
+                    self.draw_scanline(self.ly);
+                    self.ly += 1;
                 }
                 144 => {
                     // Reset line counter
@@ -272,6 +273,7 @@ impl PPU {
                     self.update_mode(VBlank);
                     // Swap double buffer for rendering new frame
                     self.display.swap();
+                    self.ly += 1;
                 }
                 153 => {
                     // Start drawing new frame
@@ -281,11 +283,11 @@ impl PPU {
                     if self.state == Starting {
                         self.state = Active;
                     }
-                    return;
                 }
-                _ => {}
+                _ => {
+                    self.ly += 1;
+                }
             }
-            self.ly += 1;
 
             // Check for LYC=LY interrupt if its enabled
             if self.stat_enable.intersects(STATEnable::LYC) && self.lyc == self.ly {
@@ -532,30 +534,47 @@ impl PPU {
 impl MemoryAccess for PPU {
     fn mem_read(&self, address: u16) -> u8 {
         match address {
+            // VRAM
             0x8000..=0x9FFF => self.vram[(address - 0x8000) as usize],
+            // OAM
             0xFE00..=0xFE9F => self.oam.read(address - 0xFE00),
+            // LCDC
             0xFF40 => self.lcdc.bits(),
+            // STAT
             0xFF41 => {
                 let lyc = ((self.lyc == self.ly) as u8) << 2;
                 self.stat_enable.bits() | lyc | u8::from(self.mode)
             }
+            // SCY
             0xFF42 => self.bg_y,
+            // SCX
             0xFF43 => self.bg_x,
+            // LY
             0xFF44 => self.ly,
+            // LYC
             0xFF45 => self.lyc,
+            // OAM DMA
             0xFF46 => self.oam_dma_source,
+            // BGP
             0xFF47 => self.palettes.bg,
+            // OBP0
             0xFF48 => self.palettes.obj0,
+            // OBP1
             0xFF49 => self.palettes.obj1,
+            // WY
             0xFF4A => self.win_y,
+            // WX
             0xFF4B => self.win_x + 7,
             _ => 0xFF,
         }
     }
     fn mem_write(&mut self, address: u16, value: u8) {
         match address {
+            // VRAM
             0x8000..=0x9FFF => self.vram[(address - 0x8000) as usize] = value,
+            // OAM
             0xFE00..=0xFE9F => self.oam.write(address - 0xFE00, value),
+            // LCDC
             0xFF40 => {
                 self.lcdc = LCDControl::from_bits_truncate(value);
                 let enabled = self.lcdc.intersects(LCDControl::ENABLE);
@@ -566,18 +585,28 @@ impl MemoryAccess for PPU {
                     self.mode = PPUMode::OAMScan;
                 }
             }
+            // STAT
             0xFF41 => self.stat_enable = STATEnable::from_bits_truncate(value),
+            // SCY
             0xFF42 => self.bg_y = value,
+            // SCX
             0xFF43 => self.bg_x = value,
+            // LYC
             0xFF45 => self.lyc = value,
+            // OAM DMA
             0xFF46 => {
                 self.oam_dma_source = value;
                 self.oam_dma_request = true;
             }
+            // BGP
             0xFF47 => self.palettes.bg = value,
+            // OBP0
             0xFF48 => self.palettes.obj0 = value,
+            // OBP1
             0xFF49 => self.palettes.obj1 = value,
+            // WY
             0xFF4A => self.win_y = value,
+            // WX
             0xFF4B => self.win_x = value.saturating_sub(7),
             _ => {}
         }

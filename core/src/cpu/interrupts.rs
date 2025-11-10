@@ -59,8 +59,6 @@ impl CPU {
 
     /// Executes interrupt handler
     fn run_interrupt(&mut self, interrupt: InterruptFlag) {
-        // println!("INTERRUPTED: {:05b}", interrupt.bits());
-
         self.istate.iflag.remove(interrupt);
         let address: u16 = match interrupt {
             InterruptFlag::VBLANK => 0x40,
