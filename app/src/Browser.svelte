@@ -70,17 +70,18 @@
   <div class="browser-list">
     {#each romTitles as title}
       <div class="browser-item">
-        {#if roms[title].image_url !== ""}
-          <button
-            class="browser-img"
-            onclick={() => load(roms[title].download_url)}
-          >
-            <img src={roms[title].image_url} alt={title} />
-            <div class="browser-img-overlay">
-              <p class="browser-img-overlay-text">▶</p>
-            </div>
-          </button>
-        {/if}
+        <button
+          class="browser-img"
+          onclick={() => load(roms[title].download_url)}
+        >
+          <img
+            src={roms[title].image_url ?? "/app/assets/cartridge.png"}
+            alt={title}
+          />
+          <div class="browser-img-overlay">
+            <p class="browser-img-overlay-text">▶</p>
+          </div>
+        </button>
 
         <h3>{title}</h3>
         <p>{roms[title].developer}</p>
