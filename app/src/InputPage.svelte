@@ -1,16 +1,16 @@
 <script lang="ts">
-  import InputManager, { Keybind } from "./input.svelte";
+  import InputManager from "./input.svelte";
   let { input }: { input: InputManager } = $props();
 </script>
 
-{#snippet inputList(mappings: Keybind<string>[])}
-  {#each mappings as mapping (mapping.name)}
-    <p>{mapping.name}</p>
-    {#if input.mappingToRebind == mapping.name}
+{#snippet inputList(mappings: Record<string, string>)}
+  {#each Object.keys(mappings) as name (name)}
+    <p>{name}</p>
+    {#if input.mappingToRebind == name}
       <button style="color:grey">[ Rebinding... ]</button>
     {:else}
-      <button onclick={() => (input.mappingToRebind = mapping.name)}
-        >{mapping.input}</button
+      <button onclick={() => (input.mappingToRebind = name)}
+        >{mappings[name]}</button
       >
     {/if}
   {/each}
@@ -21,4 +21,7 @@
   {@render inputList(input.controls)}
   <h3>Keybinds</h3>
   {@render inputList(input.keybinds)}
+  <button class="danger-button" onclick={() => input.setToDefaults()}
+    >Set to defaults</button
+  >
 </div>

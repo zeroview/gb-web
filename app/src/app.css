@@ -247,6 +247,17 @@ button:hover {
   color: #ffffff;
 }
 
+.danger-button {
+  color: #fa7c73;
+  grid-column: span 2;
+  text-align: center !important;
+  margin-top: 20px;
+}
+
+.danger-button:hover {
+  color: #ff0000;
+}
+
 input[type="range"] {
   -webkit-appearance: none;
   appearance: none;

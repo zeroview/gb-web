@@ -6,19 +6,23 @@
 
   import InputManager from "./input.svelte";
   import EmulatorManager from "./manager.svelte";
+
   import { fade, fly } from "svelte/transition";
-  import { defaultOptions } from "./options.svelte";
+  import { loadOptions, saveOptions } from "./options.svelte";
   import { onMount } from "svelte";
 
-  let options = $state(defaultOptions());
   let manager = new EmulatorManager();
+  let hasRomBeenLoaded = false;
+
+  let options = $state(loadOptions());
   $effect(() => {
     manager.updateOptions(options);
+    saveOptions(options);
   });
 
   let input = new InputManager();
   input.onPause(() => {
-    if (!manager.initialized) {
+    if (!hasRomBeenLoaded) {
       return;
     }
     manager.toggle_execution();
@@ -64,14 +68,13 @@
     }, 2000);
   }
 
-  let firstLoad = true;
   manager.onRomLoaded((success, info) => {
     if (success) {
       document.title = `${info} - DMG-2025`;
       console.info("Successfully loaded ROM");
-      if (firstLoad) {
+      if (!hasRomBeenLoaded) {
         showMessage("Press Esc to return to menu");
-        firstLoad = false;
+        hasRomBeenLoaded = true;
       }
       manager.toggle_execution();
     } else {

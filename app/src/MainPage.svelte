@@ -1,6 +1,6 @@
 <script lang="ts">
   import EmulatorManager from "./manager.svelte";
-  import type Options from "./options.svelte";
+  import { defaultOptions, type Options } from "./options.svelte";
   import MenuSlider from "./MenuSlider.svelte";
 
   let {
@@ -68,4 +68,8 @@
     step={1}
     valueLabelCallback={(value) => `${speedSliderValues[value]}x`}
   />
+
+  <button class="danger-button" onclick={() => (options = defaultOptions)}
+    >Reset options</button
+  >
 </div>

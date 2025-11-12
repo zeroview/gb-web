@@ -22,30 +22,31 @@ export const palettes: Record<string, Palette> = {
 };
 export const paletteNames = ["LCD", "Clear", "Raw"]
 
-export default interface Options {
-  paletteIndex: number,
-  speed: number,
-  volume: number,
-  scaleOffset: number,
-  uiTransitions: boolean,
-  backgroundGlowStrength: number,
-  displayGlowStrength: number,
-  glowQuality: number,
-  glowRadius: number,
-  ambientLight: number
+export const defaultOptions = {
+  paletteIndex: 0,
+  speed: 1,
+  volume: 100,
+  scaleOffset: 0,
+  uiTransitions: true,
+  backgroundGlowStrength: 60,
+  displayGlowStrength: 30,
+  glowQuality: 5,
+  glowRadius: 0.5,
+  ambientLight: 0.3,
+};
+
+export type Options = typeof defaultOptions;
+
+export const loadOptions = () => {
+  let loaded = localStorage.getItem("options");
+  if (loaded !== null) {
+    return JSON.parse(loaded) as Options;
+  }
+  else {
+    return defaultOptions;
+  }
 }
 
-export const defaultOptions = () => {
-  return {
-    paletteIndex: 0,
-    speed: 1,
-    volume: 100,
-    scaleOffset: 0,
-    uiTransitions: true,
-    backgroundGlowStrength: 60,
-    displayGlowStrength: 30,
-    glowQuality: 5,
-    glowRadius: 0.5,
-    ambientLight: 0.3,
-  } as Options;
+export const saveOptions = (options: Options) => {
+  localStorage.setItem("options", JSON.stringify(options));
 }

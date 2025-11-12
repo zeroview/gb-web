@@ -1,6 +1,6 @@
 <script lang="ts">
   import MenuSlider from "./MenuSlider.svelte";
-  import type Options from "./options.svelte";
+  import type { Options } from "./options.svelte";
   import { paletteNames } from "./options.svelte";
 
   let { options = $bindable() }: { options: Options } = $props();

@@ -1,6 +1,6 @@
 
 import { spawn_event_loop, Proxy, EmulatorOptions, ProxyCallbacks, } from "DMG-2025";
-import type Options from "./options.svelte";
+import type { Options } from "./options.svelte";
 import { palettes, paletteNames } from "./options.svelte";
 
 export default class EmulatorManager {
