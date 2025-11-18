@@ -1,9 +1,11 @@
 <script lang="ts">
   import Fuse from "fuse.js";
-  import EmulatorManager from "./manager.svelte";
-  let { manager }: { manager: EmulatorManager } = $props();
   import homebrewRoms from "../roms/homebrewhub.json";
-
+  let {
+    onLoadRom,
+  }: {
+    onLoadRom: (rom: ArrayBuffer, isZip: boolean) => void;
+  } = $props();
   interface ROMInfo {
     developer: string;
     typetag: string;
@@ -45,8 +47,8 @@
 
   function load(url: string) {
     fetch(url).then((response) => {
-      response.arrayBuffer().then((buffer) => {
-        manager.loadRom(buffer, false);
+      response.arrayBuffer().then((rom) => {
+        onLoadRom(rom, false);
       });
     });
   }

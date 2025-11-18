@@ -20,5 +20,5 @@ use timer::*;
 pub use apu::AudioBufferConsumer;
 pub use cpu::CPU;
 pub use input::InputFlag;
-pub use memory::{MemoryInitializationError, MemoryInitializationErrorType};
+pub use memory::{CartridgeInfo, MemoryInitializationError, MemoryInitializationErrorType};
 pub use ppu::{DISPLAY_BUFFER_SIZE, DisplayBuffer};

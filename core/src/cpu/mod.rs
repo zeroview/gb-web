@@ -39,9 +39,19 @@ impl CPU {
         })
     }
 
-    /// Writes ROM file onto memory: used to rewrite ROM after deserialization
-    pub fn set_rom(&mut self, rom_file: Vec<u8>) {
-        self.mem.mbc.load_rom(rom_file);
+    /// Writes ROM to memory: used to rewrite ROM after deserialization
+    pub fn set_rom(&mut self, rom: Vec<u8>) {
+        self.mem.set_rom(rom);
+    }
+
+    /// Writes RAM to memory: used to initialize RAM from external save
+    pub fn set_ram(&mut self, ram: Vec<u8>) {
+        self.mem.set_ram(ram);
+    }
+
+    /// Returns a copy of RAM buffer, used to save RAM externally
+    pub fn get_ram(&self) -> Vec<u8> {
+        self.mem.get_ram()
     }
 
     /// Initializes a ring buffer for audio playback and returns its consumer.
@@ -72,9 +82,9 @@ impl CPU {
         }
     }
 
-    /// Returns the title of the cartridge as defined in its header
-    pub fn get_cartridge_title(&self) -> &str {
-        &self.mem.info.title
+    /// Returns info about cartridge
+    pub fn get_cartridge_info(&self) -> &CartridgeInfo {
+        &self.mem.info
     }
 
     const MS_PER_M_CYCLE: f32 = 0.0009536743;

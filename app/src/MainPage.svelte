@@ -1,28 +1,27 @@
 <script lang="ts">
-  import EmulatorManager from "./manager.svelte";
   import { defaultOptions, type Options } from "./options.svelte";
   import MenuSlider from "./MenuSlider.svelte";
 
   let {
-    manager,
     options = $bindable(),
     onBrowse,
-    onSave,
-    onLoad,
+    onSaveState,
+    onLoadState,
     onSaveSlotChange,
-    saveDisabled,
-    loadDisabled,
-    saveSlot,
+    onLoadRom,
+    saveStateDisabled: saveDisabled,
+    loadStateDisabled: loadDisabled,
+    stateSlot: saveSlot,
   }: {
-    manager: EmulatorManager;
     options: Options;
     onBrowse: () => void;
-    onSave: () => void;
-    onLoad: () => void;
+    onSaveState: () => void;
+    onLoadState: () => void;
+    onLoadRom: (rom: ArrayBuffer, isZip: boolean) => void;
     onSaveSlotChange: (change: number) => void;
-    saveDisabled: boolean;
-    loadDisabled: boolean;
-    saveSlot: number;
+    saveStateDisabled: boolean;
+    loadStateDisabled: boolean;
+    stateSlot: number;
   } = $props();
 
   const zipMimeTypes = [
@@ -35,8 +34,9 @@
     // Open selected file as byte array
     if (files) {
       let file = files[0];
+      // Determine file type
       let isZip = zipMimeTypes.includes(file.type);
-      files[0].arrayBuffer().then((rom) => manager.loadRom(rom, isZip));
+      files[0].arrayBuffer().then((rom) => onLoadRom(rom, isZip));
     }
   });
 
@@ -61,8 +61,8 @@
 
 <p style="height:1rem"></p>
 <div class="button-row">
-  <button onclick={onSave} disabled={saveDisabled}>Save state</button>
-  <button onclick={onLoad} disabled={loadDisabled}>Load state</button>
+  <button onclick={onSaveState} disabled={saveDisabled}>Save state</button>
+  <button onclick={onLoadState} disabled={loadDisabled}>Load state</button>
   <div class="button-row" style="gap:1rem">
     <p>Slot:</p>
     <button onclick={() => onSaveSlotChange(-1)}>&lt;</button>

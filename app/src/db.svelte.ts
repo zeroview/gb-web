@@ -7,27 +7,36 @@ interface StateData {
   state: ArrayBuffer
 }
 
-type DexieDB = Dexie & {
-  states: EntityTable<StateData, "id">
+interface SaveData {
+  id: number,
+  romHash: number,
+  ram: ArrayBuffer,
 }
+
+type DexieDB = Dexie & {
+  states: EntityTable<StateData, "id">,
+  saves: EntityTable<SaveData, "id">,
+}
+
 export class Database {
   private db: DexieDB;
 
   constructor() {
     const db = new Dexie("DMG-2025") as DexieDB;
     db.version(1).stores({
-      states: "++id, romHash, slot"
+      states: "++id, romHash, slot",
+      saves: "++id, romHash"
     })
     this.db = db;
   }
 
-  private getCollection = (romHash: number, slot: number) => {
+  private getStateCollection = (romHash: number, slot: number) => {
     return this.db.states.filter(state => state.romHash === romHash && state.slot === slot);
   }
 
   saveState = async (romHash: number, slot: number, state: Uint8Array) => {
     // Delete previous state
-    let collection = this.getCollection(romHash, slot);
+    let collection = this.getStateCollection(romHash, slot);
     await collection.delete();
     // Save new state
     await this.db.states.add({
@@ -38,9 +47,40 @@ export class Database {
   }
 
   getState = async (romHash: number, slot: number) => {
-    let collection = this.getCollection(romHash, slot);
+    let collection = this.getStateCollection(romHash, slot);
     let result = await collection.first();
-    return result !== undefined ? new Uint8Array(result.state) : null;
+    if (result !== undefined) {
+      return new Uint8Array(result.state);
+    }
+    else {
+      throw `State not found for slot ${slot}`;
+    }
+  }
+
+  private getSaveCollection = (romHash: number) => {
+    return this.db.saves.filter(state => state.romHash === romHash);
+  }
+
+  saveRAM = async (romHash: number, ram: Uint8Array) => {
+    // Delete previous save 
+    let collection = this.getSaveCollection(romHash);
+    await collection.delete();
+    // Save new save 
+    await this.db.saves.add({
+      romHash,
+      ram: ram.buffer,
+    });
+  }
+
+  getRAM = async (romHash: number) => {
+    let collection = this.getSaveCollection(romHash);
+    let result = await collection.first();
+    if (result !== undefined) {
+      return new Uint8Array(result.ram);
+    }
+    else {
+      throw `Saved RAM not found`;
+    }
   }
 }
 

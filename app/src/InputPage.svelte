@@ -1,6 +1,13 @@
 <script lang="ts">
   import InputManager from "./input.svelte";
   let { input }: { input: InputManager } = $props();
+
+  function formatName(name: string) {
+    if (name.length == 1) {
+      name = name.toUpperCase();
+    }
+    return name;
+  }
 </script>
 
 {#snippet inputList(mappings: Record<string, string>)}
@@ -10,16 +17,13 @@
       <button style="color:grey">[ Rebinding... ]</button>
     {:else}
       <button onclick={() => (input.mappingToRebind = name)}
-        >{mappings[name]}</button
+        >{formatName(mappings[name])}</button
       >
     {/if}
   {/each}
 {/snippet}
 
-<div
-  class="menu-grid"
-  style="grid-template-columns: 15rem 15rem; overflow-y: scroll;"
->
+<div class="menu-grid" style="grid-template-columns: 15rem 15rem;">
   <h3>Controls</h3>
   {@render inputList(input.controls)}
   <h3>Keybinds</h3>

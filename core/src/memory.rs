@@ -111,17 +111,17 @@ pub struct Memory {
     #[serde(with = "BigArray")]
     pub hram: [u8; 0x7F],
     pub info: CartridgeInfo,
-    pub mbc: MBC,
+    mbc: MBC,
 }
 
 impl Memory {
-    pub fn new(rom_file: Vec<u8>) -> Result<Self, MemoryInitializationError> {
-        if rom_file.len() < 0x014F {
+    pub fn new(rom: Vec<u8>) -> Result<Self, MemoryInitializationError> {
+        if rom.len() < 0x014F {
             return Err(MemoryInitializationError {
                 error_type: MemoryInitializationErrorType::NoHeader,
             });
         }
-        let info = CartridgeInfo::from_header(&rom_file[0x0100..=0x014F]);
+        let info = CartridgeInfo::from_header(&rom[0x0100..=0x014F]);
         if !matches!(
             info.mbc,
             MBCType::NoMBC | MBCType::MBC1 | MBCType::MBC3 | MBCType::MBC5
@@ -130,8 +130,7 @@ impl Memory {
                 error_type: MemoryInitializationErrorType::UnimplementedMBC(info.mbc),
             });
         }
-        let mut mbc = MBC::init(info.clone());
-        mbc.load_rom(rom_file);
+        let mbc = MBC::init(rom, info.clone());
 
         Ok(Self {
             wram: [0; 0x2000],
@@ -139,6 +138,21 @@ impl Memory {
             mbc,
             info,
         })
+    }
+
+    /// Overwrites ROM of simulated cartridge
+    pub fn set_rom(&mut self, rom: Vec<u8>) {
+        self.mbc.rom = rom;
+    }
+
+    /// Overwrites RAM of simulated cartridge
+    pub fn set_ram(&mut self, ram: Vec<u8>) {
+        self.mbc.ram = ram;
+    }
+
+    /// Returns copy of RAM buffer in simulated cartridge
+    pub fn get_ram(&self) -> Vec<u8> {
+        self.mbc.ram.clone()
     }
 }
 
@@ -166,7 +180,7 @@ impl MemoryAccess for Memory {
 /// Simulates behavior of MBC cartridges
 #[allow(clippy::upper_case_acronyms)]
 #[derive(Deserialize, Serialize)]
-pub struct MBC {
+struct MBC {
     // ROM is loaded manually using load_rom function
     // This is so ROM isnt also saved in the save state for no reason
     #[serde(skip_serializing, skip_deserializing)]
@@ -181,9 +195,9 @@ pub struct MBC {
 }
 
 impl MBC {
-    pub fn init(info: CartridgeInfo) -> Self {
+    pub fn init(rom: Vec<u8>, info: CartridgeInfo) -> Self {
         Self {
-            rom: vec![],
+            rom,
             ram: vec![0; usize::from(0x2000 * info.ram_banks)],
             rom_bank: 1,
             ram_bank: 0,
@@ -191,11 +205,6 @@ impl MBC {
             advanced_banking: false,
             info,
         }
-    }
-
-    /// Loads ROM file into the simulated cartridge
-    pub fn load_rom(&mut self, rom_file: Vec<u8>) {
-        self.rom = rom_file;
     }
 
     /// Returns value from memory at address

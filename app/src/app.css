@@ -82,6 +82,9 @@ main {
 .menu-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
+  scrollbar-width: auto;
+  scrollbar-color: #d1d1d1 transparent;
+  overflow-y: scroll;
 }
 
 .menu-grid>button {
@@ -184,7 +187,7 @@ main {
   width: 100%;
   overflow-y: scroll;
   scrollbar-width: auto;
-  scrollbar-color: white transparent;
+  scrollbar-color: #d1d1d1 transparent;
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
   gap: 2%;
@@ -203,7 +206,7 @@ main {
 
 
 .popup {
-  position: absolute;
+  position: fixed;
   z-index: 1;
   bottom: 1rem;
   left: 2rem;

@@ -40,7 +40,6 @@ pub struct App {
     proxy: Option<winit::event_loop::EventLoopProxy<UserEvent>>,
     renderer: Option<Renderer>,
     options: EmulatorOptions,
-    callbacks: ProxyCallbacks,
     audio: AudioHandler,
     input_state: InputFlag,
     cpu: Option<CPU>,
@@ -52,7 +51,6 @@ impl App {
     pub fn new(event_loop: &EventLoop<UserEvent>) -> Self {
         Self {
             proxy: Some(event_loop.create_proxy()),
-            callbacks: ProxyCallbacks::default(),
             renderer: None,
             options: EmulatorOptions::default(),
             audio: AudioHandler::new(),
@@ -61,10 +59,6 @@ impl App {
             rom: vec![],
             last_cpu_frame: 0,
         }
-    }
-
-    fn get_document() -> web_sys::Document {
-        web_sys::window().unwrap_throw().document().unwrap_throw()
     }
 }
 
@@ -76,7 +70,7 @@ impl ApplicationHandler<UserEvent> for App {
         use wasm_bindgen::JsCast;
         use winit::platform::web::WindowAttributesExtWebSys;
 
-        let document = Self::get_document();
+        let document = web_sys::window().unwrap_throw().document().unwrap_throw();
         let canvas = document.get_element_by_id(CANVAS_ID).unwrap_throw();
         let html_canvas_element = canvas.unchecked_into();
         window_attributes = window_attributes.with_canvas(Some(html_canvas_element));
@@ -150,148 +144,170 @@ impl ApplicationHandler<UserEvent> for App {
                 renderer.update_options(&self.options);
                 self.renderer = Some(*renderer);
             }
-            UserEvent::LoadRom(file, is_zip) => {
-                // If loaded rom file is zip, try to unzip it into a ROM File
-                let rom = if is_zip {
-                    use std::io::{BufReader, Cursor, Read, Result};
-                    use std::path::Path;
+            UserEvent::Query(mut request) => {
+                use BridgeQuery as Q;
+                let query = request.query.take().unwrap();
+                match query {
+                    Q::LoadROM { file, is_zip } => {
+                        let rom = if is_zip {
+                            use std::io::{BufReader, Cursor, Read, Result};
+                            use std::path::Path;
 
-                    let mut rom_option = None;
-                    if let Ok(mut archive) = zip::ZipArchive::new(Cursor::new(&file[..])) {
-                        // Loop through files in zip to find ROM
-                        for i in 0..archive.len() {
-                            if let Ok(archive_file) = archive.by_index(i) {
-                                // Choose first file inside zip that either has no extension or .gb
-                                if Path::new(archive_file.name())
-                                    .extension()
-                                    .is_none_or(|ext| ext == "gb")
-                                {
-                                    let buf = BufReader::new(archive_file);
-                                    let rom_result: Result<Vec<u8>> = buf.bytes().collect();
-                                    if let Ok(deflated_rom) = rom_result {
-                                        rom_option = Some(deflated_rom);
-                                        break;
+                            let mut rom_option = None;
+                            if let Ok(mut archive) = zip::ZipArchive::new(Cursor::new(&file[..])) {
+                                // Loop through files in zip to find ROM
+                                for i in 0..archive.len() {
+                                    if let Ok(archive_file) = archive.by_index(i) {
+                                        // Choose first file inside zip that either has no extension or .gb
+                                        if Path::new(archive_file.name())
+                                            .extension()
+                                            .is_none_or(|ext| ext == "gb")
+                                        {
+                                            let buf = BufReader::new(archive_file);
+                                            let rom_result: Result<Vec<u8>> = buf.bytes().collect();
+                                            if let Ok(deflated_rom) = rom_result {
+                                                rom_option = Some(deflated_rom);
+                                                break;
+                                            }
+                                        }
                                     }
                                 }
                             }
+                            rom_option
+                        } else {
+                            Some(file)
+                        };
+
+                        if let Some(rom) = rom {
+                            match CPU::new(rom.clone()) {
+                                Ok(mut cpu) => {
+                                    // Hash ROM into a number that can be used to index database
+                                    let mut hasher = Murmur3Hasher::default();
+                                    rom.hash(&mut hasher);
+                                    let hash = hasher.finish32();
+                                    // Gather info about loaded ROM
+                                    let info = cpu.get_cartridge_info();
+                                    let rom_info = ROMInfo {
+                                        title: info.title.clone(),
+                                        should_be_saved: info.has_ram && info.has_battery,
+                                        hash,
+                                    };
+
+                                    // Initialize audio playback
+                                    cpu.set_audio_sample_rate(self.audio.sample_rate);
+                                    let audio_consumer = cpu.init_audio_buffer(
+                                        self.audio.sample_capacity,
+                                        self.audio.channels,
+                                    );
+                                    self.audio.init_playback(audio_consumer);
+                                    self.cpu = Some(cpu);
+                                    self.renderer.as_ref().unwrap().window.request_redraw();
+
+                                    request.respond(BridgeResponse::ROMLoaded(rom_info));
+                                }
+                                Err(e) => request.reject(&format!("Failed to load ROM: {e}")),
+                            }
+                            self.rom = rom;
+                        } else {
+                            request.reject("Zip archive is invalid");
                         }
                     }
-                    rom_option
-                } else {
-                    Some(file)
-                };
-
-                if let Some(rom) = rom {
-                    // Hash ROM into a number that can be used to index database
-                    let mut hasher = Murmur3Hasher::default();
-                    rom.hash(&mut hasher);
-                    let hash = hasher.finish32();
-                    match CPU::new(rom.clone()) {
-                        Ok(mut cpu) => {
-                            self.callbacks.call(Callback::ROMLoaded(
-                                cpu.get_cartridge_title().to_string(),
-                                hash,
-                            ));
-                            // Initialize audio playback
-                            cpu.set_audio_sample_rate(self.audio.sample_rate);
-                            let audio_consumer = cpu
+                    Q::LoadRAM { ram } => {
+                        if let Some(cpu) = &mut self.cpu {
+                            cpu.set_ram(ram);
+                            log::info!("RAM set");
+                            request.resolve();
+                        } else {
+                            request.reject("CPU not initialized");
+                        }
+                    }
+                    Q::RunCPU { millis } => {
+                        if let Some(cpu) = &mut self.cpu {
+                            cpu.run(millis);
+                            request.resolve();
+                        } else {
+                            request.reject("CPU not initialized");
+                        }
+                    }
+                    Q::SaveRAM {} => {
+                        if let Some(cpu) = &self.cpu {
+                            request.respond(BridgeResponse::RAMSaved(cpu.get_ram()));
+                        } else {
+                            request.reject("CPU not initialized");
+                        }
+                    }
+                    Q::SerializeCPU {} => {
+                        if let Some(cpu) = &self.cpu {
+                            match postcard::to_stdvec(&cpu) {
+                                Ok(serialized) => {
+                                    request.respond(BridgeResponse::CPUSerialized(serialized));
+                                }
+                                Err(e) => request.reject(&format!("Failed to serialize: {e}")),
+                            };
+                        } else {
+                            request.reject("CPU not initialized");
+                        }
+                    }
+                    Q::DeserializeCPU { buffer } => match postcard::from_bytes::<CPU>(&buffer) {
+                        Ok(mut deserialized) => {
+                            deserialized.set_rom(self.rom.clone());
+                            deserialized.set_audio_sample_rate(self.audio.sample_rate);
+                            let audio_consumer = deserialized
                                 .init_audio_buffer(self.audio.sample_capacity, self.audio.channels);
                             self.audio.init_playback(audio_consumer);
-                            self.cpu = Some(cpu);
-                            self.renderer.as_ref().unwrap().window.request_redraw();
+                            self.cpu = Some(deserialized);
+                            request.resolve();
                         }
-                        Err(e) => {
-                            self.callbacks
-                                .call(Callback::Error(format!("Failed to load ROM: {e}")));
-                        }
+                        Err(e) => request.reject(&format!("Failed to deserialize: {e}")),
+                    },
+                    Q::SetPaused { paused } => {
+                        *self.audio.paused.write().unwrap() = paused;
+                        request.resolve();
                     }
-                    self.rom = rom;
-                } else {
-                    self.callbacks
-                        .call(Callback::Error("Zip archive is invalid".to_string()));
-                }
-            }
-            UserEvent::RunCPU(millis) => {
-                if let Some(cpu) = &mut self.cpu {
-                    cpu.run(millis);
-                }
-            }
-            UserEvent::SerializeCPU => {
-                if let Some(cpu) = &self.cpu {
-                    match postcard::to_stdvec(&cpu) {
-                        Ok(serialized) => {
-                            self.callbacks.call(Callback::CPUSerialized(serialized));
+                    Q::SetSpeed { speed } => {
+                        // Update audio sample speed
+                        if let Some(cpu) = &mut self.cpu {
+                            let new_sample_rate = if speed == 1.0 {
+                                self.audio.sample_rate
+                            } else {
+                                ((self.audio.sample_rate as f32) / speed) as u32
+                            };
+                            cpu.set_audio_sample_rate(new_sample_rate);
                         }
-                        Err(e) => {
-                            self.callbacks
-                                .call(Callback::Error(format!("Failed to serialize: {e}")));
-                        }
-                    };
-                }
-            }
-            UserEvent::DeserializeCPU(cpu) => match postcard::from_bytes::<CPU>(&cpu) {
-                Ok(mut deserialized) => {
-                    deserialized.set_rom(self.rom.clone());
-                    deserialized.set_audio_sample_rate(self.audio.sample_rate);
-                    let audio_consumer = deserialized
-                        .init_audio_buffer(self.audio.sample_capacity, self.audio.channels);
-                    self.audio.init_playback(audio_consumer);
-                    self.cpu = Some(deserialized);
-                    self.callbacks.call(Callback::CPUDeserialized);
-                }
-                Err(e) => {
-                    self.callbacks
-                        .call(Callback::Error(format!("Failed to deserialize: {e}")));
-                }
-            },
-            UserEvent::SetPaused(paused) => {
-                *self.audio.paused.write().unwrap() = paused;
-            }
-            UserEvent::SetSpeed(speed) => {
-                // Update audio sample speed
-                if let Some(cpu) = &mut self.cpu {
-                    let new_sample_rate = if speed == 1.0 {
-                        self.audio.sample_rate
-                    } else {
-                        ((self.audio.sample_rate as f32) / speed) as u32
-                    };
-                    cpu.set_audio_sample_rate(new_sample_rate);
-                }
-            }
-            UserEvent::UpdateInput(input_str, pressed) => {
-                let input_option = match input_str.as_str() {
-                    "Right" => Some(InputFlag::RIGHT),
-                    "Left" => Some(InputFlag::LEFT),
-                    "Up" => Some(InputFlag::UP),
-                    "Down" => Some(InputFlag::DOWN),
-                    "A" => Some(InputFlag::A),
-                    "B" => Some(InputFlag::B),
-                    "Select" => Some(InputFlag::SELECT),
-                    "Start" => Some(InputFlag::START),
-                    _ => None,
-                };
-                if let Some(input_flag) = input_option {
-                    self.input_state.set(input_flag, !pressed);
+                        request.resolve();
+                    }
+                    Q::UpdateInput { input, pressed } => {
+                        let input_option = match input.as_str() {
+                            "Right" => Some(InputFlag::RIGHT),
+                            "Left" => Some(InputFlag::LEFT),
+                            "Up" => Some(InputFlag::UP),
+                            "Down" => Some(InputFlag::DOWN),
+                            "A" => Some(InputFlag::A),
+                            "B" => Some(InputFlag::B),
+                            "Select" => Some(InputFlag::SELECT),
+                            "Start" => Some(InputFlag::START),
+                            _ => None,
+                        };
+                        if let Some(input_flag) = input_option {
+                            self.input_state.set(input_flag, !pressed);
 
-                    if let Some(cpu) = &mut self.cpu {
-                        cpu.update_input(&self.input_state);
+                            if let Some(cpu) = &mut self.cpu {
+                                cpu.update_input(&self.input_state);
+                            }
+                        }
+                        request.resolve();
+                    }
+                    Q::UpdateOptions { options } => {
+                        // Update renderer options
+                        if let Some(renderer) = &mut self.renderer {
+                            renderer.update_options(&options);
+                        }
+                        // Update audio volume
+                        *self.audio.volume.write().unwrap() = options.volume;
+                        self.options = options;
+                        request.resolve();
                     }
                 }
-            }
-            UserEvent::UpdateOptions(options) => {
-                // Update renderer options
-                if let Some(renderer) = &mut self.renderer {
-                    renderer.update_options(&options);
-                }
-                // Update audio volume
-                *self.audio.volume.write().unwrap() = options.volume;
-                self.options = options;
-            }
-            UserEvent::SetCallbacks(callbacks) => {
-                self.callbacks = callbacks;
-            }
-            UserEvent::Test(string) => {
-                log::info!("Test from JS: {}", &string);
             }
         }
     }

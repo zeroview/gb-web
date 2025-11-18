@@ -1,41 +1,25 @@
 use super::*;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
-use std::mem::{Discriminant, discriminant};
+use tsify::Tsify;
 use web_sys::js_sys;
 
 /// A color in linear RGB space
-#[wasm_bindgen]
 #[repr(C)]
 #[derive(
-    Debug, Copy, Clone, PartialEq, Deserialize, Serialize, bytemuck::Pod, bytemuck::Zeroable,
+    Tsify, Debug, Copy, Clone, PartialEq, Deserialize, Serialize, bytemuck::Pod, bytemuck::Zeroable,
 )]
-pub struct Color {
-    r: f32,
-    g: f32,
-    b: f32,
-    a: f32,
-}
-
-#[wasm_bindgen]
-impl Color {
-    #[wasm_bindgen(constructor)]
-    pub fn new(r: f32, g: f32, b: f32) -> Self {
-        Self { r, g, b, a: 1.0 }
-    }
-}
+#[tsify(from_wasm_abi)]
+pub struct Color(pub f32, pub f32, pub f32, pub f32);
 
 /// Represents color palette for display
-#[wasm_bindgen]
 #[repr(C)]
 #[derive(
-    Debug, Copy, Clone, Deserialize, Serialize, PartialEq, bytemuck::Pod, bytemuck::Zeroable,
+    Tsify, Debug, Copy, Clone, Deserialize, Serialize, PartialEq, bytemuck::Pod, bytemuck::Zeroable,
 )]
+#[tsify(from_wasm_abi)]
 pub struct Palette(pub Color, pub Color, pub Color, pub Color);
 
-#[wasm_bindgen]
 impl Palette {
-    #[wasm_bindgen(constructor)]
     pub fn new(col1: Color, col2: Color, col3: Color, col4: Color) -> Self {
         Self(col1, col2, col3, col4)
     }
@@ -44,18 +28,17 @@ impl Palette {
 impl Default for Palette {
     fn default() -> Self {
         Self::new(
-            Color::new(1.0, 1.0, 1.0),
-            Color::new(0.6666, 0.6666, 0.6666),
-            Color::new(0.3333, 0.3333, 0.3333),
-            Color::new(0.0, 0.0, 0.0),
+            Color(1.0, 1.0, 1.0, 1.0),
+            Color(0.6666, 0.6666, 0.6666, 1.0),
+            Color(0.3333, 0.3333, 0.3333, 1.0),
+            Color(0.0, 0.0, 0.0, 1.0),
         )
     }
 }
 
-#[wasm_bindgen]
-#[derive(Default, Debug, Clone, Copy)]
+#[derive(Tsify, Default, Debug, Clone, Copy, Deserialize, Serialize)]
+#[tsify(from_wasm_abi)]
 pub struct EmulatorOptions {
-    pub palette: Palette,
     pub volume: f32,
     pub scale_offset: i32,
     pub display_glow_strength: f32,
@@ -63,98 +46,121 @@ pub struct EmulatorOptions {
     pub glow_iterations: usize,
     pub glow_radius: f32,
     pub ambient_light: f32,
+    pub(crate) palette: Palette,
 }
 
 #[wasm_bindgen]
-impl EmulatorOptions {
-    #[wasm_bindgen(constructor)]
-    pub fn new() -> Self {
-        Self::default()
-    }
+#[derive(Debug, Clone, Default)]
+pub struct ROMInfo {
+    /// The ROM title, interpreted from header
+    pub(crate) title: String,
+    /// If RAM should be saved externally
+    /// (header says that cartridge has RAM and battery for saving it)
+    pub should_be_saved: bool,
+    /// The hash of the ROM file
+    pub hash: u32,
+}
 
-    pub fn update_palette(&mut self, palette: &Palette) {
-        self.palette = *palette;
+#[derive(Tsify, Debug, Clone, Serialize, Deserialize)]
+#[tsify(from_wasm_abi)]
+pub enum BridgeQuery {
+    LoadROM {
+        #[tsify(type = "Uint8Array")]
+        file: Vec<u8>,
+        is_zip: bool,
+    },
+    LoadRAM {
+        #[tsify(type = "Uint8Array")]
+        ram: Vec<u8>,
+    },
+    RunCPU {
+        millis: f32,
+    },
+    SaveRAM {},
+    SerializeCPU {},
+    DeserializeCPU {
+        #[tsify(type = "Uint8Array")]
+        buffer: Vec<u8>,
+    },
+    SetPaused {
+        paused: bool,
+    },
+    SetSpeed {
+        speed: f32,
+    },
+    UpdateInput {
+        input: String,
+        pressed: bool,
+    },
+    UpdateOptions {
+        options: EmulatorOptions,
+    },
+}
+
+#[wasm_bindgen]
+impl ROMInfo {
+    #[wasm_bindgen(getter)]
+    pub fn title(&self) -> String {
+        self.title.clone()
     }
 }
 
-pub enum Callback {
-    /// Called when new ROM is loaded
-    /// Arguments: ROM title (from header), hash of ROM file
-    ROMLoaded(String, u32),
-    /// Called when CPU is successfully serialized into a save state
-    /// Arguments: the serialized CPU in binary
+pub enum BridgeResponse {
+    /// New ROM is loaded,
+    /// returns info about newly loaded ROM
+    ROMLoaded(ROMInfo),
+    /// Returns the current RAM buffer
+    RAMSaved(Vec<u8>),
+    /// CPU is successfully serialized into a save state,
+    /// returns the serialized CPU
     CPUSerialized(Vec<u8>),
-    /// Called when CPU is successfully deserialized, a.k.a. save state is loaded
-    CPUDeserialized,
-    /// Called when something goes wrong
-    /// Arguments: information about error
-    Error(String),
 }
 
-#[wasm_bindgen]
-#[derive(Debug, Default, Clone)]
-pub struct ProxyCallbacks {
-    callbacks: HashMap<Discriminant<Callback>, js_sys::Function>,
+#[derive(Debug)]
+pub struct BridgeRequest {
+    resolve: js_sys::Function,
+    reject: js_sys::Function,
+    pub query: Option<BridgeQuery>,
 }
 
-#[wasm_bindgen]
-impl ProxyCallbacks {
-    #[wasm_bindgen(constructor)]
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    fn set_callback(&mut self, callback_type: Callback, function: &js_sys::Function) {
-        self.callbacks
-            .insert(discriminant(&callback_type), function.clone());
-    }
-
-    pub fn set_rom_loaded(&mut self, function: &js_sys::Function) {
-        self.set_callback(Callback::ROMLoaded(String::new(), 0), function);
-    }
-
-    pub fn set_cpu_serialized(&mut self, function: &js_sys::Function) {
-        self.set_callback(Callback::CPUSerialized(Vec::new()), function);
-    }
-
-    pub fn set_cpu_deserialized(&mut self, function: &js_sys::Function) {
-        self.set_callback(Callback::CPUDeserialized, function);
-    }
-
-    pub fn set_error(&mut self, function: &js_sys::Function) {
-        self.set_callback(Callback::Error(String::new()), function);
-    }
-
-    pub(crate) fn call(&self, callback: Callback) {
-        if let Some(function) = self.callbacks.get(&discriminant(&callback)) {
-            match callback {
-                Callback::ROMLoaded(title, hash) => {
-                    function.call2(&JsValue::NULL, &title.into(), &hash.into())
-                }
-                Callback::CPUSerialized(buffer) => {
-                    function.call1(&JsValue::NULL, &js_sys::Uint8Array::new_from_slice(&buffer))
-                }
-                Callback::CPUDeserialized => function.call0(&JsValue::NULL),
-                Callback::Error(error) => function.call1(&JsValue::NULL, &error.into()),
+impl BridgeRequest {
+    fn full_resolve(&self, response: Option<BridgeResponse>) {
+        if let Some(response) = response {
+            use BridgeResponse as R;
+            match response {
+                R::ROMLoaded(info) => self.resolve.call1(&JsValue::NULL, &info.into()),
+                R::CPUSerialized(buffer) => self
+                    .resolve
+                    .call1(&JsValue::NULL, &js_sys::Uint8Array::new_from_slice(&buffer)),
+                R::RAMSaved(buffer) => self
+                    .resolve
+                    .call1(&JsValue::NULL, &js_sys::Uint8Array::new_from_slice(&buffer)),
             }
             .unwrap_throw();
+        } else {
+            self.resolve.call0(&JsValue::NULL).unwrap_throw();
         }
+    }
+
+    pub fn resolve(&self) {
+        self.full_resolve(None);
+    }
+
+    pub fn respond(&self, response: BridgeResponse) {
+        self.full_resolve(Some(response));
+    }
+
+    pub fn reject(&self, reason: &str) {
+        self.reject
+            .call1(&JsValue::NULL, &reason.into())
+            .unwrap_throw();
     }
 }
 
 #[derive(Debug)]
 pub enum UserEvent {
     InitRenderer(Box<Renderer>),
-    LoadRom(Vec<u8>, bool),
-    RunCPU(f32),
-    SerializeCPU,
-    DeserializeCPU(Vec<u8>),
-    SetPaused(bool),
-    SetSpeed(f32),
-    UpdateInput(String, bool),
-    UpdateOptions(EmulatorOptions),
-    SetCallbacks(ProxyCallbacks),
-    Test(String),
+    Query(BridgeRequest),
 }
 
 // A proxy to communicate with the event loop from frontend
@@ -170,43 +176,15 @@ impl Proxy {
             .send_event(event)
             .expect("Couldn't send event to EventLoop");
     }
-    pub fn test(&self, str: String) {
-        self.send(UserEvent::Test(str));
-    }
 
-    pub fn load_rom(&self, rom: Vec<u8>, is_zip: bool) {
-        self.send(UserEvent::LoadRom(rom, is_zip));
-    }
-
-    pub fn run_cpu(&self, millis: f32) {
-        self.send(UserEvent::RunCPU(millis));
-    }
-
-    pub fn serialize_cpu(&self) {
-        self.send(UserEvent::SerializeCPU);
-    }
-
-    pub fn deserialize_cpu(&self, cpu: Vec<u8>) {
-        self.send(UserEvent::DeserializeCPU(cpu));
-    }
-
-    pub fn set_paused(&self, paused: bool) {
-        self.send(UserEvent::SetPaused(paused));
-    }
-
-    pub fn set_speed(&self, speed: f32) {
-        self.send(UserEvent::SetSpeed(speed));
-    }
-
-    pub fn update_input(&self, key: String, pressed: bool) {
-        self.send(UserEvent::UpdateInput(key, pressed));
-    }
-
-    pub fn update_options(&self, options: &EmulatorOptions) {
-        self.send(UserEvent::UpdateOptions(*options));
-    }
-
-    pub fn set_callbacks(&self, callbacks: &ProxyCallbacks) {
-        self.send(UserEvent::SetCallbacks(callbacks.clone()));
+    pub fn query(&self, query: BridgeQuery) -> js_sys::Promise {
+        js_sys::Promise::new(&mut |resolve, reject| {
+            let request = BridgeRequest {
+                resolve,
+                reject,
+                query: Some(query.clone()),
+            };
+            self.send(UserEvent::Query(request));
+        })
     }
 }
