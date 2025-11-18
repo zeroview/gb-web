@@ -15,10 +15,14 @@ concurrency:
 env:
   CARGO_TERM_COLOR: always
 
-permissions: {}
+# Allow deployment to GitHub Pages
+permissions:
+  contents: read
+  pages: write
+  id-token: write
 
 jobs:
-  build:
+  deploy:
     runs-on: ubuntu-latest
 
     steps:
@@ -42,30 +46,17 @@ jobs:
     - name: Install NPM dependencies
       run: npm ci
 
-    # This preserves normally ignored build directories for deployment
-    - name: Remove .gitignore
-      run: rm .gitignore
-
     - name: Build WASM
       run: npm run build
-
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-
-    # Allow deployment to GitHub Pages
-    permissions:
-      contents: read
-      pages: write
-      id-token: write
       
-    steps:
-      - name: Setup Pages
-        uses: actions/configure-pages@v5
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v4
-        with:
-          path: './dist'
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
+    - name: Setup Pages
+      uses: actions/configure-pages@v5
+      
+    - name: Upload artifact
+      uses: actions/upload-pages-artifact@v4
+      with:
+        path: './dist'
+      
+    - name: Deploy to GitHub Pages
+      id: deployment
+      uses: actions/deploy-pages@v4
