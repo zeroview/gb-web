@@ -1,0 +1,8 @@
+[package]
+name = "dmg_2025_debugger"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+dmg_2025_core = { path = "../core"}
+dotenv = "0.15.0"

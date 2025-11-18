@@ -1,44 +1,24 @@
-![DMG-2025](/assets/logo_large.png)
+![DMG-2025](/app/assets/logo_large.png)
 
-# The world's worst Game Boy emulator
+## Features
+- Reasonably accurate DMG (first Game Boy edition) emulation
+  - Core written in _blazingly fast_ Rust, compiled to WebAssembly
+  - Plays most games as on real hardware  
+  - Passes `cpu_instrs`, `dmg-acid2` etc.
+- GPU-based display rendering
+  - Customizable color palettes
+  - Configurable post-processing effects
+- Integrated browser for ROMs from [Homebrew Hub](https://hh.gbdev.io/)
+  - Load community made games and demos with just one click
+- Save states
+- Automatic saving of games whose cartridges support it 
+- Fast forwarding / slowing down
+- Input rebinding
 
-My shitty GameBoy emulator written in Rust.
-Features save states, input rebinding and custom palettes.
-
-## Installation
-
-Download the latest release and run it.
-Alternatively install Cargo, clone the repository and build the executable with `cargo build --release`
-
-## Project goals
-
--   Fucking run something ✅
--   Play Pokemon ✅
--   Add UI ✅
--   Port to WASM?
--   Game Boy Color emulation?
-
-## Credits
-
--   [PixelMix font by Andrew Tyler](https://www.dafont.com/pixelmix.font)
--   [Game Boy mockup texture by Indieground](https://resourceboy.com/mockups/top-view-close-up-shot-gameboy-on-floor-mockup/)
--   [All the cool libraries used](/Cargo.toml)
-
-## TO-DO
-
-### App features
-
--   Fast forwarding
-
-### Audio
-
--   Sound is popping quite often
--   Filters for nicer sounds?
-
-### Graphics
-
--   Rendering isn't 100% accurate
-
-### Memory
-
--   Not all MBC types and features are supported
+## Local installation
+- Install dependencies:
+  - `npm`
+  - `cargo`
+  - `wasm-pack`
+- Run dev server with `npm run dev`
+- Create production build with `npm run build`

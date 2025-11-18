@@ -1,0 +1,12 @@
+[package]
+name = "dmg_2025_core"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+bitflags = "2.6.0"
+serde = {version = "1.0.217", features = ["derive"]}
+serde-big-array = "0.5.1"
+ringbuf = "0.4.8"
+double-buffer = "1.0.0"
+log = "0.4"
