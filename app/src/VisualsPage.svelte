@@ -20,11 +20,30 @@
   <p>Color palette:</p>
   <button onclick={swapPalette}>{paletteNames[options.paletteIndex]}</button>
   <p>Background brightness:</p>
-  <MenuSlider bind:value={options.ambientLight} min={0} max={1} step={0.01} />
+  <MenuSlider
+    bind:value={options.ambientLight}
+    min={0}
+    max={100}
+    step={1}
+    valueLabelCallback={(value) => `${value}%`}
+  />
   <p>UI transitions:</p>
   <button onclick={() => (options.uiTransitions = !options.uiTransitions)}>
     {options.uiTransitions ? "On" : "Off"}
   </button>
+
+  <p style="grid-column: span 2; height: 2rem"></p>
+  <p>Scanline strength:</p>
+  <MenuSlider
+    bind:value={options.scanlineStrength}
+    min={0}
+    max={100}
+    step={1}
+    valueLabelCallback={(value) => `${value}%`}
+  />
+  <p>Scanline size:</p>
+  <MenuSlider bind:value={options.scanlineSize} min={0.01} max={0.5} step={0.01}
+  ></MenuSlider>
 
   <p style="grid-column: span 2; height: 2rem"></p>
   <p>Glow:</p>

@@ -47,6 +47,8 @@ pub struct EmulatorOptions {
     pub glow_iterations: usize,
     pub glow_radius: f32,
     pub ambient_light: f32,
+    pub scanline_strength: f32,
+    pub scanline_size: f32,
     pub(crate) palette: Palette,
 }
 

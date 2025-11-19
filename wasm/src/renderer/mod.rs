@@ -26,7 +26,7 @@ pub struct Renderer {
     texture_bind_group_layout: wgpu::BindGroupLayout,
 
     scale_offset: i32,
-    options: UniformBuffer<DisplayOptionsUniform>,
+    display_options: UniformBuffer<DisplayOptionsUniform>,
     display: UniformBuffer<DisplayBufferUniform>,
     blur_options: UniformBuffer<BlurOptionsUniform>,
     glow_iterations: usize,
@@ -258,7 +258,7 @@ impl Renderer {
             texture_bind_group_layout,
 
             scale_offset: 0,
-            options,
+            display_options: options,
             display,
             blur_options,
             final_options,
@@ -272,8 +272,6 @@ impl Renderer {
         if !self.is_surface_configured {
             return Ok(());
         }
-
-
 
         // Create command encoder
         let mut encoder = self
@@ -304,7 +302,7 @@ impl Renderer {
             timestamp_writes: None,
         });
         display_render_pass.set_pipeline(&self.display_render_pipeline);
-        display_render_pass.set_bind_group(0, &self.options.bind_group, &[]);
+        display_render_pass.set_bind_group(0, &self.display_options.bind_group, &[]);
         display_render_pass.set_bind_group(1, &self.display.bind_group, &[]);
         display_render_pass.draw(0..6, 0..1);
         drop(display_render_pass);
@@ -456,9 +454,9 @@ impl Renderer {
             ];
 
             // Update options
-            self.options.scale = scale;
-            self.options.origin = display_origin;
-            self.options.update_buffer(&self.queue);
+            self.display_options.scale = scale;
+            self.display_options.origin = display_origin;
+            self.display_options.update_buffer(&self.queue);
             self.blur_options.resolution[0] = (width / scale) as f32;
             self.blur_options.resolution[1] = (height / scale) as f32;
             self.blur_options.update_buffer(&self.queue);
@@ -474,14 +472,16 @@ impl Renderer {
             self.scale_offset = options.scale_offset;
             self.resize(self.config.width, self.config.height);
         }
-        self.options.palette = options.palette;
+        self.display_options.palette = options.palette;
+        self.display_options.scanline_strength = options.scanline_strength;
+        self.display_options.scanline_size = options.scanline_size;
         self.final_options.glow_strength_display = options.display_glow_strength;
         self.final_options.glow_strength_background = options.background_glow_strength;
         self.final_options.ambient_light = options.ambient_light;
         self.final_options.glow_enabled = if options.glow_enabled { 1 } else { 0 };
         self.glow_iterations = options.glow_iterations;
         self.glow_radius = options.glow_radius;
-        self.options.update_buffer(&self.queue);
+        self.display_options.update_buffer(&self.queue);
         self.final_options.update_buffer(&self.queue);
     }
 

@@ -4,9 +4,14 @@ use super::*;
 #[derive(Debug, Default, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct DisplayOptionsUniform {
     pub palette: Palette,
-    pub scale: u32,
-    _pad: u32,
+
+    pub scanline_strength: f32,
+    pub scanline_size: f32,
+    _pad1: [u32; 2],
+
     pub origin: [i32; 2],
+    pub scale: u32,
+    _pad2: u32,
 }
 
 #[repr(C)]
@@ -38,12 +43,15 @@ pub struct FinalOptionsUniform {
     pub glow_strength_display: f32,
     pub glow_strength_background: f32,
     pub ambient_light: f32,
+
     pub display_origin: [i32; 2],
     pub display_size: [u32; 2],
+
     pub background_display_origin: [u32; 2],
     pub background_display_size: [u32; 2],
+
     pub viewport_size: [u32; 2],
-    _pad2: [u32; 2],
+    _pad: [u32; 2],
 }
 
 #[derive(Debug)]

@@ -1,4 +1,4 @@
-import { type Palette } from "DMG-2025";
+import { type Palette, type EmulatorOptions } from "DMG-2025";
 
 export const palettes: Record<string, Palette> = {
   LCD: [
@@ -32,12 +32,30 @@ export const defaultOptions = {
   backgroundGlowStrength: 80,
   displayGlowStrength: 40,
   glowEnabled: true,
-  glowQuality: 5,
-  glowRadius: 2,
-  ambientLight: 0.7,
+  glowQuality: 4,
+  glowRadius: 0.5,
+  scanlineStrength: 20,
+  scanlineSize: 0.25,
+  ambientLight: 70,
 };
 
 export type Options = typeof defaultOptions;
+
+export const toEmulatorOptions = (options: Options) => {
+  return {
+    palette: palettes[paletteNames[options.paletteIndex]],
+    volume: options.volume / 100,
+    scale_offset: options.scaleOffset,
+    background_glow_strength: options.backgroundGlowStrength / 100,
+    display_glow_strength: options.displayGlowStrength / 100,
+    glow_enabled: options.glowEnabled,
+    glow_iterations: options.glowQuality * 2,
+    glow_radius: options.glowRadius,
+    scanline_strength: options.scanlineStrength / 100,
+    scanline_size: options.scanlineSize,
+    ambient_light: options.ambientLight / 100,
+  } as EmulatorOptions
+}
 
 export const loadOptions = () => {
   let loaded = localStorage.getItem("options");

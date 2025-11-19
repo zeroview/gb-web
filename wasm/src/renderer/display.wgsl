@@ -2,11 +2,18 @@
 struct OptionsUniform {
     /// The colored palette to get the final drawn pixel color from
     palette: array<vec4<f32>, 4>,
-    /// The scale of pixels
-    scale: u32,
-    pad: u32,
+    
+    /// The brightness or strength of scanlines
+    scanline_strength: f32,
+    /// The size of the scanline
+    scanline_size: f32,
+    pad1: vec2<u32>,
+  
     /// The origin of the display in pixel space
     origin: vec2<i32>,
+    /// The scale of pixels
+    scale: u32,
+    pad2: u32,
 }
 
 @group(0) @binding(0)
@@ -46,15 +53,18 @@ fn vs_main(
     return out;
 }
 
-fn get_pixel_color(pos: vec2<i32>, origin: vec2<i32>, scale: u32) -> vec4<f32> {
+fn get_pixel_color(pos: vec2<i32>) -> vec4<f32> {
+    let origin = options.origin;
+    let scale = options.scale;
+
     // Crop out pixels on the top and left sides of display
     if pos.x < origin.x || pos.y < origin.y {
-        return vec4f(0.0, 0.0, 0.0, 1.0);
+        return vec4f(0.0);
     }
     let pixel = vec2u(pos - origin) / scale;
     // Crop out pixels on the bottom and right sides of display
     if pixel.x >= 160u || pixel.y >= 144u {
-        return vec4f(0.0, 0.0, 0.0, 1.0);
+        return vec4f(0.0);
     }
     // Calculate index of pixel on display
     let pixel_i = pixel.y * 160u + pixel.x;
@@ -76,8 +86,50 @@ fn get_pixel_color(pos: vec2<i32>, origin: vec2<i32>, scale: u32) -> vec4<f32> {
     return options.palette[color];
 }
 
+const PI = 3.14159265359;
+fn scanline_sin(x: f32, freq: f32) -> f32 {
+    // Return 0 when outside of the first period centered at 0
+    if x > freq || x < -freq {
+        return 0.0;
+    }
+    return (sin(PI * ((1.0 / freq) * x + (1.0 / 2.0))) + 1.0) / 2.0;
+}
+
+fn get_scanline_color(color: vec4<f32>, pos: vec2<i32>) -> vec4<f32> {
+    let scale = f32(options.scale);
+    let size = options.scanline_size;
+    let strength = options.scanline_strength / 10.0;
+    // Don't draw scanlines if pixel size is only one
+    if scale == 1.0 {
+        return color;
+    }
+    
+    // Correct pos so the right and bottom sides show
+    // the fully lit scanline
+    var corrected_pos = pos;
+    if pos.x == 160 * i32(options.scale) - 1 {
+        corrected_pos.x += 1;
+    }
+    if pos.y == 144 * i32(options.scale) - 1 {
+        corrected_pos.y += 1;
+    }
+
+    let pixel_pos = (vec2f(corrected_pos) % scale) / scale;
+    // Calculate scanline light coming from all sides of the pixel
+    var value = scanline_sin(pixel_pos.x, size);
+    value += scanline_sin(1.0 - pixel_pos.x, size);
+    value += scanline_sin(pixel_pos.y, size);
+    value += scanline_sin(1.0 - pixel_pos.y, size);
+    return color + vec4f(vec3f(value * strength), 0.0);
+}
+
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
-    return get_pixel_color(vec2i(in.pos.xy), options.origin, options.scale);
+    let pos = vec2i(in.pos.xy);
+    let color = get_pixel_color(pos);
+    if color.a == 0.0 {
+      discard;
+    }
+    return get_scanline_color(color, pos - options.origin);
 }
 

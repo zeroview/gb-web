@@ -1,6 +1,6 @@
 import { spawn_event_loop, Proxy, type EmulatorOptions, ROMInfo } from "DMG-2025";
 import type { Options } from "./options.svelte";
-import { palettes, paletteNames } from "./options.svelte";
+import { toEmulatorOptions } from "./options.svelte";
 
 export default class EmulatorBridge {
   private proxy: Proxy | undefined = undefined;
@@ -91,18 +91,7 @@ export default class EmulatorBridge {
     if (!this.proxy) {
       return;
     }
-    let emuOptions: EmulatorOptions = {
-      palette: palettes[paletteNames[options.paletteIndex]],
-      volume: options.volume / 100,
-      scale_offset: options.scaleOffset,
-      background_glow_strength: options.backgroundGlowStrength / 100,
-      display_glow_strength: options.displayGlowStrength / 100,
-      glow_enabled: options.glowEnabled,
-      glow_iterations: options.glowQuality * 2,
-      glow_radius: options.glowRadius,
-      ambient_light: options.ambientLight,
-    }
-    return this.proxy.query({ UpdateOptions: { options: emuOptions } }) as Promise<void>;
+    return this.proxy.query({ UpdateOptions: { options: toEmulatorOptions(options) } }) as Promise<void>;
   }
 
   updateInput = async (input: string, pressed: boolean) => {
