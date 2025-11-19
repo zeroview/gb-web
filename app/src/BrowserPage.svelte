@@ -46,7 +46,7 @@
   });
 
   function load(url: string) {
-    fetch(url).then((response) => {
+    fetch(url, { priority: "high" }).then((response) => {
       response.arrayBuffer().then((rom) => {
         onLoadRom(rom, false);
       });
@@ -79,6 +79,7 @@
           <img
             src={roms[title].image_url ?? "/app/assets/cartridge.png"}
             alt={title}
+            loading="lazy"
           />
           <div class="browser-img-overlay">
             <p class="browser-img-overlay-text">▶</p>
