@@ -85,6 +85,7 @@ main {
   scrollbar-width: auto;
   scrollbar-color: #d1d1d1 transparent;
   overflow-y: scroll;
+  grid-column: span 2;
 }
 
 .menu-grid>button {

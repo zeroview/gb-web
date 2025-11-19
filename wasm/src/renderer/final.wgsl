@@ -12,10 +12,10 @@ var background_texture: texture_2d<f32>;
 var background_sampler: sampler;
 
 struct Options {
+    glow_enabled: u32,
     glow_strength_display: f32,
     glow_strength_background: f32,
     ambient_light: f32,
-    pad: u32,
     display_origin: vec2<i32>,
     display_size: vec2<u32>,
     background_display_origin: vec2<u32>,
@@ -70,15 +70,30 @@ fn sample_background(pos: vec2<u32>) -> vec4<f32> {
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let pos = vec2u(in.pos.xy);
-    let display_color = textureSample(display_texture, display_sampler, in.uv);
-    let glow = textureSample(blur_texture, blur_sampler, in.uv);
-
+    // Calculate display bounds
     let display_min = vec2u(max(options.display_origin, vec2i(0)));
-    let display_max = display_min + options.display_size;
+    let display_max = display_min + options.display_size - 1u;
+
+    var color = vec4f(0.0);
+    var glow_strength = 0.0;
     if pos.x < display_min.x || pos.x > display_max.x || pos.y < display_min.y || pos.y > display_max.y {
-        let background_color = sample_background(pos);
-        return background_color * options.ambient_light + (glow * options.glow_strength_background);
+        // If nothing needs to be drawn on the background, discard fragment
+        if options.ambient_light == 0.0 && options.glow_enabled == 0u {
+          discard;
+        }
+        // Sample background with brightness
+        color = sample_background(pos) * options.ambient_light;
+        glow_strength = options.glow_strength_background;
     } else {
-        return display_color + (glow * options.glow_strength_display);
+        // Sample display texture
+        color = textureSample(display_texture, display_sampler, in.uv);
+        glow_strength = options.glow_strength_display;
     }
+    // Apply glow if enabled
+    if options.glow_enabled > 0u {
+        let glow = textureSample(blur_texture, blur_sampler, in.uv);
+        color += (glow * glow_strength);
+    }
+    return color;
 }
+

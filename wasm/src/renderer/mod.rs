@@ -273,22 +273,7 @@ impl Renderer {
             return Ok(());
         }
 
-        // Generate bind groups for uniforms to be used in blur passes'
-        let mut blur_uniform_bind_groups = vec![];
-        for i in 1..=self.glow_iterations {
-            let mut buffer = *self.blur_options;
-            // Calculate radius for blurring
-            let blur_radius = ((self.glow_iterations - i) as f32) * self.glow_radius;
-            // First blur horizontally, then vertically
-            buffer.direction = if i.is_multiple_of(2) {
-                [0.0, blur_radius]
-            } else {
-                [blur_radius, 0.0]
-            };
-            // Copy uniform into a new wrapper and push generated bind group into list
-            let uniform = UniformBuffer::from(buffer, &self.device, &format!("Blur {i}"));
-            blur_uniform_bind_groups.push(uniform.bind_group);
-        }
+
 
         // Create command encoder
         let mut encoder = self
@@ -328,40 +313,62 @@ impl Renderer {
             self.h_blur_texture.as_mut().unwrap(),
             self.v_blur_texture.as_mut().unwrap(),
         );
-        // Run blur shader for iterations to blur the result of the display render pass onto a
-        // texture
-        for (i, uniform_bind_group) in blur_uniform_bind_groups.iter().enumerate() {
-            // Choose texture view and texture bind group based on iteration count
-            let (view, mut bind_group) = if i.is_multiple_of(2) {
-                (&v_blur.texture_view, &h_blur.bind_group)
-            } else {
-                (&h_blur.texture_view, &v_blur.bind_group)
-            };
-            // On the first pass, read from the initial display texture
-            if i == 1 {
-                bind_group = &self.display_texture.as_ref().unwrap().bind_group;
+        // Don't apply glow if not enabled
+        if self.final_options.glow_enabled > 0 {
+            // Generate bind groups for uniforms to be used in blur passes'
+            let mut blur_uniform_bind_groups = vec![];
+            let radius = self.glow_radius / self.glow_iterations as f32;
+            for i in 1..=self.glow_iterations {
+                let mut buffer = *self.blur_options;
+                // Calculate radius for blurring
+                let blur_radius = ((self.glow_iterations - i) as f32) * radius;
+                // First blur horizontally, then vertically
+                buffer.direction = if i.is_multiple_of(2) {
+                    [0.0, blur_radius]
+                } else {
+                    [blur_radius, 0.0]
+                };
+                // Copy uniform into a new wrapper and push generated bind group into list
+                let uniform = UniformBuffer::from(buffer, &self.device, &format!("Blur {i}"));
+                blur_uniform_bind_groups.push(uniform.bind_group);
             }
 
-            // Execute render pass
-            let mut effect_render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                label: Some(&format!("Effect Render Pass {i}")),
-                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view,
-                    resolve_target: None,
-                    depth_slice: None,
-                    ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Load,
-                        store: wgpu::StoreOp::Store,
-                    },
-                })],
-                depth_stencil_attachment: None,
-                occlusion_query_set: None,
-                timestamp_writes: None,
-            });
-            effect_render_pass.set_pipeline(&self.blur_render_pipeline);
-            effect_render_pass.set_bind_group(0, Some(bind_group), &[]);
-            effect_render_pass.set_bind_group(1, uniform_bind_group, &[]);
-            effect_render_pass.draw(0..6, 0..1);
+            // Run blur shader for iterations to blur the result of the display render pass onto a
+            // texture
+            for (i, uniform_bind_group) in blur_uniform_bind_groups.iter().enumerate() {
+                // Choose texture view and texture bind group based on iteration count
+                let (view, mut bind_group) = if i.is_multiple_of(2) {
+                    (&v_blur.texture_view, &h_blur.bind_group)
+                } else {
+                    (&h_blur.texture_view, &v_blur.bind_group)
+                };
+                // On the first pass, read from the initial display texture
+                if i == 1 {
+                    bind_group = &self.display_texture.as_ref().unwrap().bind_group;
+                }
+
+                // Execute render pass
+                let mut effect_render_pass =
+                    encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                        label: Some(&format!("Effect Render Pass {i}")),
+                        color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                            view,
+                            resolve_target: None,
+                            depth_slice: None,
+                            ops: wgpu::Operations {
+                                load: wgpu::LoadOp::Load,
+                                store: wgpu::StoreOp::Store,
+                            },
+                        })],
+                        depth_stencil_attachment: None,
+                        occlusion_query_set: None,
+                        timestamp_writes: None,
+                    });
+                effect_render_pass.set_pipeline(&self.blur_render_pipeline);
+                effect_render_pass.set_bind_group(0, Some(bind_group), &[]);
+                effect_render_pass.set_bind_group(1, uniform_bind_group, &[]);
+                effect_render_pass.draw(0..6, 0..1);
+            }
         }
 
         // Combine display and blur textures onto a final image
@@ -471,6 +478,7 @@ impl Renderer {
         self.final_options.glow_strength_display = options.display_glow_strength;
         self.final_options.glow_strength_background = options.background_glow_strength;
         self.final_options.ambient_light = options.ambient_light;
+        self.final_options.glow_enabled = if options.glow_enabled { 1 } else { 0 };
         self.glow_iterations = options.glow_iterations;
         self.glow_radius = options.glow_radius;
         self.options.update_buffer(&self.queue);

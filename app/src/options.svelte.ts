@@ -29,11 +29,12 @@ export const defaultOptions = {
   volume: 100,
   scaleOffset: 0,
   uiTransitions: true,
-  backgroundGlowStrength: 60,
-  displayGlowStrength: 30,
+  backgroundGlowStrength: 80,
+  displayGlowStrength: 40,
+  glowEnabled: true,
   glowQuality: 5,
-  glowRadius: 0.5,
-  ambientLight: 0.3,
+  glowRadius: 2,
+  ambientLight: 0.7,
 };
 
 export type Options = typeof defaultOptions;

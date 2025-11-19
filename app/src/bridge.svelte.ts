@@ -97,6 +97,7 @@ export default class EmulatorBridge {
       scale_offset: options.scaleOffset,
       background_glow_strength: options.backgroundGlowStrength / 100,
       display_glow_strength: options.displayGlowStrength / 100,
+      glow_enabled: options.glowEnabled,
       glow_iterations: options.glowQuality * 2,
       glow_radius: options.glowRadius,
       ambient_light: options.ambientLight,

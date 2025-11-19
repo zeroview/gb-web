@@ -34,10 +34,10 @@ pub struct BlurOptionsUniform {
 #[repr(C)]
 #[derive(Debug, Default, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct FinalOptionsUniform {
+    pub glow_enabled: u32,
     pub glow_strength_display: f32,
     pub glow_strength_background: f32,
     pub ambient_light: f32,
-    _pad: u32,
     pub display_origin: [i32; 2],
     pub display_size: [u32; 2],
     pub background_display_origin: [u32; 2],

@@ -15,37 +15,45 @@
 </script>
 
 <div class="menu-grid">
-  <h3>General</h3>
   <p>Scaling offset:</p>
   <MenuSlider bind:value={options.scaleOffset} min={-5} max={5} step={1} />
   <p>Color palette:</p>
   <button onclick={swapPalette}>{paletteNames[options.paletteIndex]}</button>
+  <p>Background brightness:</p>
+  <MenuSlider bind:value={options.ambientLight} min={0} max={1} step={0.01} />
   <p>UI transitions:</p>
   <button onclick={() => (options.uiTransitions = !options.uiTransitions)}>
     {options.uiTransitions ? "On" : "Off"}
   </button>
 
-  <h3>Glow</h3>
-  <p>BG strength:</p>
-  <MenuSlider
-    bind:value={options.backgroundGlowStrength}
-    min={0}
-    max={100}
-    step={1}
-    valueLabelCallback={(value) => `${value}%`}
-  />
-  <p>Display strength:</p>
-  <MenuSlider
-    bind:value={options.displayGlowStrength}
-    min={0}
-    max={100}
-    step={1}
-    valueLabelCallback={(value) => `${value}%`}
-  />
-  <p>Quality:</p>
-  <MenuSlider bind:value={options.glowQuality} min={0} max={10} step={1} />
-  <p>Radius:</p>
-  <MenuSlider bind:value={options.glowRadius} min={0} max={5} step={0.1} />
-  <p>Ambient light:</p>
-  <MenuSlider bind:value={options.ambientLight} min={0} max={1} step={0.01} />
+  <p style="grid-column: span 2; height: 2rem"></p>
+  <p>Glow:</p>
+  <button onclick={() => (options.glowEnabled = !options.glowEnabled)}>
+    {options.glowEnabled ? "Enabled" : "Disabled"}
+  </button>
+  <div
+    class="menu-grid"
+    style={options.glowEnabled ? "" : "visibility:hidden;"}
+  >
+    <p>Background strength:</p>
+    <MenuSlider
+      bind:value={options.backgroundGlowStrength}
+      min={0}
+      max={100}
+      step={1}
+      valueLabelCallback={(value) => `${value}%`}
+    />
+    <p>Display strength:</p>
+    <MenuSlider
+      bind:value={options.displayGlowStrength}
+      min={0}
+      max={100}
+      step={1}
+      valueLabelCallback={(value) => `${value}%`}
+    />
+    <p>Quality:</p>
+    <MenuSlider bind:value={options.glowQuality} min={1} max={10} step={1} />
+    <p>Radius:</p>
+    <MenuSlider bind:value={options.glowRadius} min={0.1} max={10} step={0.1} />
+  </div>
 </div>

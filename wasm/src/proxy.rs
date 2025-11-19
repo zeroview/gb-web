@@ -43,6 +43,7 @@ pub struct EmulatorOptions {
     pub scale_offset: i32,
     pub display_glow_strength: f32,
     pub background_glow_strength: f32,
+    pub glow_enabled: bool,
     pub glow_iterations: usize,
     pub glow_radius: f32,
     pub ambient_light: f32,
