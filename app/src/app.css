@@ -203,18 +203,18 @@ main {
   width: 100%;
   height: 100%;
   opacity: 0;
-  transition: .3s ease;
-  background-color: rgba(0, 0, 0, 0.6);
+  transition: 0.3s ease;
+  background-color: rgba(0, 0, 0, 0.5);
 }
 
-.browser-button p {
+.browser-button svg {
   position: absolute;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
   -ms-transform: translate(-50%, -50%);
-  font-size: 60px !important;
-  color: var(--active-color) !important;
+  height: 4rem;
+  fill: var(--active-color);
 }
 
 .browser-button:hover div {

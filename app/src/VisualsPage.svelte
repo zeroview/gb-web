@@ -15,7 +15,7 @@
 </script>
 
 <div class="menu-grid" tabindex="-1">
-  <p>Scaling offset:</p>
+  <p>Scaling offset (zoom):</p>
   <MenuSlider bind:value={options.scaleOffset} min={-5} max={5} step={1} />
   <p>Color palette:</p>
   <button onclick={swapPalette}>{paletteNames[options.paletteIndex]}</button>

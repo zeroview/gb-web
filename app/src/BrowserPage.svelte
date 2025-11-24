@@ -90,7 +90,21 @@
             loading="lazy"
           />
           <div>
-            <p>▶</p>
+            <svg
+              version="1.1"
+              xmlns="http://www.w3.org/2000/svg"
+              preserveAspectRatio="xMinYMin meet"
+              viewBox="0 0 16 16"
+            >
+              <rect x="2" y="1" width="2" height="14" />
+              <rect x="1" y="2" width="1" height="12" />
+              <rect x="4" y="2" width="2" height="12" />
+              <rect x="6" y="3" width="2" height="10" />
+              <rect x="8" y="4" width="2" height="8" />
+              <rect x="10" y="5" width="2" height="6" />
+              <rect x="12" y="6" width="2" height="4" />
+              <rect x="14" y="7" width="1" height="2" />
+            </svg>
           </div>
         </button>
 

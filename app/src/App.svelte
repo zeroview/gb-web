@@ -155,9 +155,8 @@
       return;
     }
     bridge.toggle_execution();
+    // RAM is automatically saved on pause (if enabled for ROM)
     if (!bridge.running) {
-      currentPage = 0;
-      // RAM is automatically saved on pause (if enabled for ROM)
       saveRAM();
     }
   });
