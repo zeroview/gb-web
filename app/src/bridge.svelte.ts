@@ -1,4 +1,4 @@
-import { spawn_event_loop, Proxy, type EmulatorOptions, ROMInfo } from "DMG-2025";
+import { spawn_event_loop, Proxy, ROMInfo } from "DMG-2025";
 import type { Options } from "./options.svelte";
 import { toEmulatorOptions } from "./options.svelte";
 
@@ -19,7 +19,14 @@ export default class EmulatorBridge {
     if (!this.proxy) {
       throw new ReferenceError("Emulator is not initialized");
     }
-    return this.proxy.query({ LoadROM: { file: new Uint8Array(rom), is_zip: isZip } }) as Promise<ROMInfo>
+    return this.proxy.query({ LoadROM: { file: new Uint8Array(rom), is_zip: isZip } }) as Promise<ROMInfo>;
+  }
+
+  reload = async () => {
+    if (!this.proxy) {
+      throw new ReferenceError("Emulator is not initialized");
+    }
+    return this.proxy.query({ Reload: {} }) as Promise<void>;
   }
 
   loadRAM = async (ram: Uint8Array) => {

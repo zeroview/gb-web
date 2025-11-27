@@ -25,6 +25,7 @@
     <h3>Keybinds</h3>
     {@render inputList(input.keybinds)}
   </div>
+  <p class="break"></p>
   <button class="danger-button" onclick={() => input.setToDefaults()}
     >Set to defaults
   </button>

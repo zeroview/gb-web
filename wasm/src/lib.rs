@@ -60,6 +60,36 @@ impl App {
             last_cpu_frame: 0,
         }
     }
+
+    fn init_cpu(&mut self, rom: Vec<u8>) -> Result<ROMInfo, MemoryInitializationError> {
+        // Hash ROM into a number that can be used to index database
+        let mut hasher = Murmur3Hasher::default();
+        rom.hash(&mut hasher);
+        let hash = hasher.finish32();
+
+        match CPU::new(rom) {
+            Ok(mut cpu) => {
+                // Gather info about loaded ROM
+                let info = cpu.get_cartridge_info();
+                let rom_info = ROMInfo {
+                    title: info.title.clone(),
+                    should_be_saved: info.has_ram && info.has_battery,
+                    hash,
+                };
+
+                // Initialize audio playback
+                cpu.set_audio_sample_rate(self.audio.sample_rate);
+                let audio_consumer =
+                    cpu.init_audio_buffer(self.audio.sample_capacity, self.audio.channels);
+                self.audio.init_playback(audio_consumer);
+                self.cpu = Some(cpu);
+                self.renderer.as_ref().unwrap().window.request_redraw();
+
+                Ok(rom_info)
+            }
+            Err(e) => Err(e),
+        }
+    }
 }
 
 impl ApplicationHandler<UserEvent> for App {
@@ -179,39 +209,19 @@ impl ApplicationHandler<UserEvent> for App {
                         };
 
                         if let Some(rom) = rom {
-                            match CPU::new(rom.clone()) {
-                                Ok(mut cpu) => {
-                                    // Hash ROM into a number that can be used to index database
-                                    let mut hasher = Murmur3Hasher::default();
-                                    rom.hash(&mut hasher);
-                                    let hash = hasher.finish32();
-                                    // Gather info about loaded ROM
-                                    let info = cpu.get_cartridge_info();
-                                    let rom_info = ROMInfo {
-                                        title: info.title.clone(),
-                                        should_be_saved: info.has_ram && info.has_battery,
-                                        hash,
-                                    };
-
-                                    // Initialize audio playback
-                                    cpu.set_audio_sample_rate(self.audio.sample_rate);
-                                    let audio_consumer = cpu.init_audio_buffer(
-                                        self.audio.sample_capacity,
-                                        self.audio.channels,
-                                    );
-                                    self.audio.init_playback(audio_consumer);
-                                    self.cpu = Some(cpu);
-                                    self.renderer.as_ref().unwrap().window.request_redraw();
-
-                                    request.respond(BridgeResponse::ROMLoaded(rom_info));
-                                }
-                                Err(e) => request.reject(&format!("Failed to load ROM: {e}")),
+                            match self.init_cpu(rom.clone()) {
+                                Ok(info) => request.respond(BridgeResponse::ROMLoaded(info)),
+                                Err(e) => request.reject(&e.to_string()),
                             }
                             self.rom = rom;
                         } else {
                             request.reject("Zip archive is invalid");
                         }
                     }
+                    Q::Reload {} => match self.init_cpu(self.rom.clone()) {
+                        Ok(_) => request.resolve(),
+                        Err(e) => request.reject(&e.to_string()),
+                    },
                     Q::LoadRAM { ram } => {
                         if let Some(cpu) = &mut self.cpu {
                             cpu.set_ram(ram);

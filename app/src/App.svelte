@@ -1,7 +1,15 @@
+<script lang="ts" module>
+  export type LoadedROMInfo = {
+    hash: number;
+    saveRAM: boolean;
+    name: string;
+  };
+</script>
+
 <script lang="ts">
   import MainPage from "./MainPage.svelte";
   import BrowserPage from "./BrowserPage.svelte";
-  import VisualsPage from "./VisualsPage.svelte";
+  import OptionsPage from "./OptionsPage.svelte";
   import InputPage from "./InputPage.svelte";
 
   import InputManager from "./input.svelte";
@@ -15,8 +23,6 @@
   // Handler initialization
   let db = new Database();
   let bridge = new EmulatorBridge();
-  /// The hash of the contents of the currently running ROM
-  let romHash = 0;
 
   // State for info / error popup
   let infoColor = "#ffffff";
@@ -48,6 +54,16 @@
     showPopup(msg, 2000);
   };
 
+  /// Info about loaded ROM
+  let loadedROMInfo: LoadedROMInfo = $state({
+    /// The hash of the contents of the currently running ROM
+    hash: 0,
+    /// If RAM should be externally saved for currently loaded ROM
+    saveRAM: false,
+    /// The name of the rom (file name or from browser)
+    name: "",
+  });
+
   /// If ROM has been loaded in this session
   let hasRomBeenLoaded = $state(false);
   /// If state can't be loaded from currently selected slot
@@ -64,7 +80,7 @@
     }
     // Check if state can be loaded from slot
     if (hasRomBeenLoaded) {
-      db.getState(romHash, stateSlot)
+      db.getState(loadedROMInfo.hash, stateSlot)
         .then(() => (loadStateDisabled = false))
         .catch(() => (loadStateDisabled = true));
     }
@@ -74,7 +90,7 @@
     try {
       // Serialize emulator state and save it to database
       let buffer = await bridge.serializeCPU();
-      await db.saveState(romHash, stateSlot, buffer);
+      await db.saveState(loadedROMInfo.hash, stateSlot, buffer);
       loadStateDisabled = false;
       console.info(`Serialized state with length of ${buffer.length}`);
       showInfoPopup(`Saved state to slot ${stateSlot}`);
@@ -85,7 +101,7 @@
   const loadState = async () => {
     try {
       // Get state from database and deserialize new emulator struct from it
-      let buffer = await db.getState(romHash, stateSlot);
+      let buffer = await db.getState(loadedROMInfo.hash, stateSlot);
       await bridge.deserializeCPU(buffer);
       console.info(`Deserialized state`);
       if (!bridge.running) {
@@ -97,41 +113,44 @@
     }
   };
 
-  /// If RAM should be externally saved for currently loaded ROM
-  let ramShouldBeSaved = false;
   const saveRAM = async () => {
-    if (!ramShouldBeSaved) {
+    if (!loadedROMInfo.saveRAM) {
       return;
     }
     let ram = await bridge.saveRAM();
-    await db.saveRAM(romHash, ram);
+    await db.saveRAM(loadedROMInfo.hash, ram);
   };
 
-  const loadROM = async (rom: ArrayBuffer, isZip: boolean) => {
+  const loadROM = async (rom: ArrayBuffer, name: string, isZip: boolean) => {
     // Try to load ROM, if fails, show popup for reason
     let info = await bridge.loadROM(rom, isZip).catch(showErrorPopup);
     if (!info) {
       return;
     }
 
-    romHash = info.hash;
-    ramShouldBeSaved = info.should_be_saved;
+    loadedROMInfo = {
+      hash: info.hash,
+      saveRAM: info.should_be_saved,
+      name,
+    };
     stateSlot = 1;
     // Enable state loading if state exists for this slot
-    db.getState(romHash, stateSlot)
+    db.getState(loadedROMInfo.hash, stateSlot)
       .then(() => (loadStateDisabled = false))
       .catch(() => (loadStateDisabled = true));
 
     // Load saved RAM into emulator
-    if (ramShouldBeSaved) {
-      let ram = await db.getRAM(romHash).catch(console.warn);
+    if (loadedROMInfo.saveRAM) {
+      let ram = await db.getRAM(loadedROMInfo.hash).catch(console.warn);
       if (ram) {
         bridge.loadRAM(ram);
       }
     }
 
     document.title = `${info.title} - DMG-2025`;
-    console.info(`Loaded ROM "${info.title}" with hash ${info.hash}`);
+    console.info(
+      `Loaded ROM file "${name}". Header: "${info.title}" Hash: ${info.hash}`,
+    );
     if (!hasRomBeenLoaded) {
       showPopup(
         "Press Esc to return to menu\nCheck Input page for controls",
@@ -141,6 +160,16 @@
     }
     // Start emulation
     bridge.toggle_execution();
+  };
+
+  const reload = async () => {
+    try {
+      await bridge.reload();
+      console.info("Reloaded ROM");
+      bridge.toggle_execution();
+    } catch (e) {
+      showErrorPopup(e as string);
+    }
   };
 
   /// Global options for emulator, saved automatically into LocalStorage
@@ -248,7 +277,7 @@
   on:beforeunload={(event) => {
     // If the RAM should be saved on this ROM,
     // notify on tab close about possibility of losing save data
-    if (!ramShouldBeSaved || !bridge.running) {
+    if (!loadedROMInfo.saveRAM || !bridge.running) {
       return;
     }
     event.preventDefault();
@@ -292,7 +321,7 @@
         <div class="menu-sidebar-buttons">
           {@render menuButton("MAIN", 0)}
           {@render menuButton("BROWSER", 1)}
-          {@render menuButton("VISUALS", 2)}
+          {@render menuButton("OPTIONS", 2)}
           {@render menuButton("INPUT", 3)}
         </div>
       </div>
@@ -306,7 +335,12 @@
         </div>
       {:else if currentPage == 2}
         <div class="menu-container" in:fly={getTransition()}>
-          <VisualsPage bind:options></VisualsPage>
+          <OptionsPage
+            bind:options
+            {db}
+            successCallback={showInfoPopup}
+            errorCallback={showErrorPopup}
+          />
         </div>
       {:else if currentPage == 3}
         <div class="menu-container" in:fly={getTransition()}>
@@ -316,12 +350,14 @@
         <div class="menu-container" in:fly={getTransition()}>
           <MainPage
             bind:options
+            info={loadedROMInfo}
             onBrowse={() => (currentPage = 1)}
             onLoadRom={loadROM}
+            onReload={reload}
             onSaveState={saveState}
             onLoadState={loadState}
             onSaveSlotChange={changeSaveSlot}
-            saveStateDisabled={!hasRomBeenLoaded}
+            romLoaded={hasRomBeenLoaded}
             {loadStateDisabled}
             {stateSlot}
           />

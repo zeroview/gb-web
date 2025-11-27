@@ -27,7 +27,7 @@
     onKeyboardFocus,
   }: {
     filters: BrowserFilters;
-    onLoadRom: (rom: ArrayBuffer, isZip: boolean) => void;
+    onLoadRom: (rom: ArrayBuffer, name: string, isZip: boolean) => void;
     onKeyboardFocus: (focus: boolean) => void;
   } = $props();
   const roms = homebrewRoms as unknown as Record<string, BrowserROMInfo>;
@@ -35,21 +35,13 @@
   let romTitles = $derived.by(() => {
     // Filter ROM list based on checkboxes
     const filtered = Object.keys(roms).filter((title) => {
-      // Dont filter if filters arent enabled
-      if (
-        !(
-          filters.featured ||
-          filters.games ||
-          filters.demos ||
-          filters.tools ||
-          filters.music
-        )
-      ) {
-        return true;
-      }
       /// Filter featured games
-      if (filters.featured) {
-        return featuredTitles.includes(title);
+      if (filters.featured && !featuredTitles.includes(title)) {
+        return false;
+      }
+      // Dont filter if filters arent enabled
+      if (!(filters.games || filters.demos || filters.tools || filters.music)) {
+        return true;
       }
       let typetag = roms[title].typetag;
       // Filter out not enabled ROM types based on typetag string
@@ -72,10 +64,10 @@
     }
   });
 
-  function load(url: string) {
+  function load(url: string, name: string) {
     fetch(url, { priority: "high" }).then((response) => {
       response.arrayBuffer().then((rom) => {
-        onLoadRom(rom, false);
+        onLoadRom(rom, name, false);
       });
     });
   }
@@ -85,10 +77,9 @@
   <div class="browser-topbar">
     <div class="browser-filters">
       <MenuCheckbox
-        --main-color="#d1c554"
-        --active-color="#ffe500"
         bind:value={filters.featured}
         label="Featured"
+        featured={true}
       />
       <MenuCheckbox bind:value={filters.games} label="Games" />
       <MenuCheckbox bind:value={filters.demos} label="Demos" />
@@ -107,7 +98,7 @@
       <div class="browser-item">
         <button
           class="browser-button"
-          onclick={() => load(roms[title].download_url)}
+          onclick={() => load(roms[title].download_url, title)}
         >
           <img
             src={roms[title].image_url ?? "/app/assets/cartridge.png"}
@@ -115,21 +106,7 @@
             loading="lazy"
           />
           <div>
-            <svg
-              version="1.1"
-              xmlns="http://www.w3.org/2000/svg"
-              preserveAspectRatio="xMinYMin meet"
-              viewBox="0 0 16 16"
-            >
-              <rect x="2" y="1" width="2" height="14" />
-              <rect x="1" y="2" width="1" height="12" />
-              <rect x="4" y="2" width="2" height="12" />
-              <rect x="6" y="3" width="2" height="10" />
-              <rect x="8" y="4" width="2" height="8" />
-              <rect x="10" y="5" width="2" height="6" />
-              <rect x="12" y="6" width="2" height="4" />
-              <rect x="14" y="7" width="1" height="2" />
-            </svg>
+            <img src="app/assets/play.png" alt="Play" />
           </div>
         </button>
 

@@ -72,6 +72,7 @@ pub enum BridgeQuery {
         file: Vec<u8>,
         is_zip: bool,
     },
+    Reload {},
     LoadRAM {
         #[tsify(type = "Uint8Array")]
         ram: Vec<u8>,
