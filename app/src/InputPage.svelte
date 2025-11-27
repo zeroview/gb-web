@@ -16,16 +16,16 @@
   {/each}
 {/snippet}
 
-<div
-  class="menu-grid"
-  style="grid-template-columns: 15rem 15rem;"
-  tabindex="-1"
->
-  <h3>Controls</h3>
-  {@render inputList(input.controls)}
-  <h3>Keybinds</h3>
-  {@render inputList(input.keybinds)}
+<div class="input-container">
+  <div class="menu-grid input-grid" tabindex="-1">
+    <h3>Controls</h3>
+    {@render inputList(input.controls)}
+  </div>
+  <div class="menu-grid input-grid" tabindex="-1">
+    <h3>Keybinds</h3>
+    {@render inputList(input.keybinds)}
+  </div>
   <button class="danger-button" onclick={() => input.setToDefaults()}
-    >Set to defaults</button
-  >
+    >Set to defaults
+  </button>
 </div>

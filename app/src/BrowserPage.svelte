@@ -88,16 +88,12 @@
         --main-color="#d1c554"
         --active-color="#ffe500"
         bind:value={filters.featured}
+        label="Featured"
       />
-      <p style="color: #d1c554;">Featured</p>
-      <MenuCheckbox bind:value={filters.games} />
-      <p>Games</p>
-      <MenuCheckbox bind:value={filters.demos} />
-      <p>Demos</p>
-      <MenuCheckbox bind:value={filters.tools} />
-      <p>Tools</p>
-      <MenuCheckbox bind:value={filters.music} />
-      <p>Music</p>
+      <MenuCheckbox bind:value={filters.games} label="Games" />
+      <MenuCheckbox bind:value={filters.demos} label="Demos" />
+      <MenuCheckbox bind:value={filters.tools} label="Tools" />
+      <MenuCheckbox bind:value={filters.music} label="Music" />
     </div>
     <input
       bind:value={filters.search}

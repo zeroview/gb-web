@@ -1,5 +1,6 @@
 <script lang="ts">
-  let { value = $bindable() }: { value: boolean } = $props();
+  let { value = $bindable(), label }: { value: boolean; label: string } =
+    $props();
 </script>
 
 <button class="checkbox" onclick={() => (value = !value)}>
@@ -27,4 +28,5 @@
       <rect x="6" y="8" width="1" height="1" />
     {/if}
   </svg>
+  <p>{label}</p>
 </button>

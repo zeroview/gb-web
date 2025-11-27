@@ -24,6 +24,8 @@
 * {
   padding: 0;
   margin: 0;
+  line-height: 1.2;
+  box-sizing: border-box;
 }
 
 *:focus {
@@ -33,12 +35,16 @@
 html,
 body,
 #app {
-  height: 100%;
+  width: 100vw;
+  max-width: 100%;
+  height: 100vh;
+  max-height: 100%;
 }
 
 main {
   position: relative;
   height: 100%;
+  overflow: hidden;
 }
 
 .menu {
@@ -47,24 +53,47 @@ main {
   position: absolute;
   background-color: hsl(211, 41%, 13%, 0.8);
 
-  display: grid;
-  grid-template-columns: auto 1fr;
-  grid-template-rows: auto 1fr;
+  display: flex;
   align-items: center;
 }
 
 .menu-sidebar {
   height: 100vh;
   margin-left: 2rem;
-  gap: 1rem;
   display: flex;
+
   flex-direction: column;
-  justify-content: center;
+  justify-content: flex-start;
+  align-items: flex-start;
+  gap: 3rem;
+}
+
+.info-button {
+  width: 12rem;
+  text-align: start;
+  align-self: flex-start;
+  margin-top: 2rem;
+}
+
+.info-button p {
+  font-size: 1rem;
+}
+
+.info-button img {
+  width: 100%;
+  image-rendering: pixelated;
+}
+
+.menu-sidebar-buttons {
+  flex-grow: 1;
+  display: flex;
+  gap: 1rem;
+  flex-direction: column;
+  justify-content: start;
   align-items: flex-start;
 }
 
-.menu-sidebar * {
-  font-weight: bold;
+.menu-sidebar-buttons * {
   text-decoration: underline;
   text-decoration-color: transparent;
   -webkit-text-decoration-color: transparent;
@@ -73,8 +102,8 @@ main {
 }
 
 .menu-container {
-  width: calc(100% - 4rem);
-  height: calc(100vh - 4rem);
+  width: 100%;
+  height: 100vh;
   padding: 2rem;
   display: flex;
   flex-direction: column;
@@ -101,8 +130,30 @@ main {
   grid-template-columns: 1fr 1fr;
   scrollbar-width: auto;
   scrollbar-color: var(--main-color) transparent;
-  overflow-y: scroll;
+  overflow-y: auto;
   grid-column: span 2;
+}
+
+.input-grid {
+  grid-template-columns: repeat(2, 13rem);
+  grid-column: span 1 !important;
+}
+
+.input-container {
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  align-items: start;
+  flex-wrap: wrap;
+  overflow-y: auto;
+  scrollbar-width: auto;
+  scrollbar-color: var(--main-color) transparent;
+}
+
+.input-container button {
+  flex-basis: 100%;
+  flex-grow: 0;
+  flex-shrink: 0;
 }
 
 .menu-grid button {
@@ -131,6 +182,8 @@ main {
   border: 3px solid var(--main-color);
   padding-left: 0.8rem;
   padding-right: 0.8rem;
+  flex: 1 1 0;
+  min-width: 15rem;
   color: var(--active-color);
   font-size: 2rem;
   margin-bottom: 0.4rem;
@@ -229,7 +282,7 @@ main {
 
 .browser-list {
   width: 100%;
-  overflow-y: scroll;
+  overflow-y: auto;
   scrollbar-width: auto;
   scrollbar-color: var(--main-color) transparent;
   display: grid;
@@ -311,6 +364,7 @@ button:disabled {
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
+  cursor: pointer;
 }
 
 .img-button:hover * {
@@ -391,17 +445,28 @@ input[type="range"]:focus::-moz-range-thumb {
   background: var(--active-color);
 }
 
+.checkbox {
+  display: flex;
+  flex-direction: row;
+  gap: 0.8rem;
+}
+
+.checkbox * {
+  transition: fill 0.2s ease, color 0.2s ease;
+}
+
 .checkbox svg {
   height: 2rem;
   fill: var(--main-color);
-  transition: fill 0.2s ease;
 }
 
-.checkbox svg:hover {
+.checkbox:hover * {
+  color: var(--active-color);
   fill: var(--active-color);
 }
 
-.checkbox:focus svg {
+.checkbox:focus * {
+  color: var(--active-color);
   fill: var(--active-color);
 }
 

@@ -285,10 +285,16 @@
         </button>
       {/snippet}
       <div class="menu-sidebar">
-        {@render menuButton("MAIN", 0)}
-        {@render menuButton("BROWSER", 1)}
-        {@render menuButton("VISUALS", 2)}
-        {@render menuButton("INPUT", 3)}
+        <a href="https://github.com/zeroview/DMG-2025" class="info-button">
+          <img src="/app/assets/logo.png" alt="DMG-2025" />
+          <p>v. 1.0.0</p>
+        </a>
+        <div class="menu-sidebar-buttons">
+          {@render menuButton("MAIN", 0)}
+          {@render menuButton("BROWSER", 1)}
+          {@render menuButton("VISUALS", 2)}
+          {@render menuButton("INPUT", 3)}
+        </div>
       </div>
       {#if currentPage == 1}
         <div class="menu-container" in:fly={getTransition()}>
