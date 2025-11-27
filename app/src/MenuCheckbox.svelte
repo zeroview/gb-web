@@ -1,4 +1,6 @@
 <script lang="ts">
+  import checkedIconUrl from "../assets/checkboxChecked.png";
+  import uncheckedIconUrl from "../assets/checkbox.png";
   let {
     value = $bindable(),
     label,
@@ -10,10 +12,10 @@
   class={"img-button " + (featured ? "featured" : "")}
   onclick={() => (value = !value)}
 >
-  {#if value}
-    <img src="/app/assets/checkboxChecked.png" alt="Checked checkbox" />
-  {:else}
-    <img src="/app/assets/checkbox.png" alt="Checkbox" />
-  {/if}
+  <img
+    src={value ? checkedIconUrl : uncheckedIconUrl}
+    loading="eager"
+    alt="Checkbox"
+  />
   <p>{label}</p>
 </button>

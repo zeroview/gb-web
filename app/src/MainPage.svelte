@@ -1,4 +1,8 @@
 <script lang="ts">
+  import reloadIconUrl from "../assets/reload.png";
+  import loadIconUrl from "../assets/load.png";
+  import browseIconUrl from "../assets/browse.png";
+
   import { type Options } from "./options.svelte";
   import FilePicker from "./FilePicker.svelte";
   import MenuSlider from "./MenuSlider.svelte";
@@ -42,7 +46,7 @@
 <div class="button-row">
   {#if romLoaded}
     <button class="img-button" onclick={onReload}>
-      <img src="/app/assets/reload.png" alt="Reload" />
+      <img src={reloadIconUrl} alt="Reload" />
       <p>Reload</p>
     </button>
   {/if}
@@ -54,11 +58,11 @@
       file.arrayBuffer().then((rom) => onLoadRom(rom, file.name, isZip));
     }}
   >
-    <img src="/app/assets/load.png" alt="Load" />
+    <img src={loadIconUrl} alt="Load" />
     <p>Load from disk</p>
   </FilePicker>
   <button class="img-button" onclick={() => onBrowse()}>
-    <img src="/app/assets/browse.png" alt="Browse" />
+    <img src={browseIconUrl} alt="Browse" />
     <p>Browse Homebrew Hub</p>
   </button>
 </div>

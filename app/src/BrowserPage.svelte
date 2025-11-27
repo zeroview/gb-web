@@ -1,4 +1,7 @@
 <script lang="ts">
+  import cartridgeImageUrl from "../assets/cartridge.png";
+  import playIconUrl from "../assets/play.png";
+
   import Fuse from "fuse.js";
   import MenuCheckbox from "./MenuCheckbox.svelte";
   import homebrewRoms from "../roms/homebrewhub.json";
@@ -101,12 +104,12 @@
           onclick={() => load(roms[title].download_url, title)}
         >
           <img
-            src={roms[title].image_url ?? "/app/assets/cartridge.png"}
+            src={roms[title].image_url ?? cartridgeImageUrl}
             alt={title}
             loading="lazy"
           />
           <div>
-            <img src="app/assets/play.png" alt="Play" />
+            <img src={playIconUrl} alt="Play" />
           </div>
         </button>
 

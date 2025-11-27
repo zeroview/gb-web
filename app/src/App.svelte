@@ -7,6 +7,7 @@
 </script>
 
 <script lang="ts">
+  import logoUrl from "../assets/logo.png";
   import MainPage from "./MainPage.svelte";
   import BrowserPage from "./BrowserPage.svelte";
   import OptionsPage from "./OptionsPage.svelte";
@@ -315,7 +316,7 @@
       {/snippet}
       <div class="menu-sidebar">
         <a href="https://github.com/zeroview/DMG-2025" class="info-button">
-          <img src="/app/assets/logo.png" alt="DMG-2025" />
+          <img src={logoUrl} alt="DMG-2025" />
           <p>v. 1.0.0</p>
         </a>
         <div class="menu-sidebar-buttons">
