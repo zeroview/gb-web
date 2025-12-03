@@ -7,6 +7,7 @@ export default class EmulatorBridge {
   private lastFrameTime = 0;
 
   private speed = 0;
+  private maxFrameTime: number = 0;
   public running = $state(false);
 
   initialize = (options: Options) => {
@@ -57,11 +58,14 @@ export default class EmulatorBridge {
       return;
     }
     let currentTime = performance.now();
-    let millis = Math.min(17, Math.max(0, currentTime - this.lastFrameTime));
+    let timeToExecute = Math.min(this.maxFrameTime, Math.max(0, currentTime - this.lastFrameTime));
     this.lastFrameTime = currentTime;
 
-    this.proxy?.query({ RunCPU: { millis: this.speed * millis } });
-    console.info(`Executed CPU for ${millis} ms`);
+    console.info(`Queried CPU to execute for ${timeToExecute} ms`);
+    this.proxy?.query({ RunCPU: { millis: this.speed * timeToExecute } }).then(() => {
+      let executionTime = performance.now() - currentTime;
+      console.info(`CPU took ${executionTime} ms to execute`);
+    });
     window.requestAnimationFrame(this.runEmulator);
   }
 
@@ -98,6 +102,7 @@ export default class EmulatorBridge {
     if (!this.proxy) {
       return;
     }
+    this.maxFrameTime = (1 / options.fpsTarget) * 1000;
     return this.proxy.query({ UpdateOptions: { options: toEmulatorOptions(options) } }) as Promise<void>;
   }
 

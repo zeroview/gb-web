@@ -88,6 +88,14 @@
     ]}
     labelFormatter={(value) => `${value}x`}
   />
+  <p>Throttling threshold:</p>
+  <MenuSlider
+    bind:value={options.fpsTarget}
+    min={5}
+    max={60}
+    step={1}
+    labelFormatter={(value) => `${value} FPS`}
+  />
 
   <p class="break"></p>
   <p>Scaling offset (zoom):</p>
@@ -110,7 +118,7 @@
     bind:value={options.scanlineStrength}
     labelFormatter={(value) => `${value}%`}
   />
-  <p>Scanline size:</p>
+  <p>Scanline smoothness:</p>
   <MenuSlider
     bind:value={options.scanlineSize}
     min={0.01}

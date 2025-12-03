@@ -39,13 +39,6 @@
 </script>
 
 <div class="slider-row">
-  <input
-    type="range"
-    bind:value={getter, setter}
-    {min}
-    {max}
-    {step}
-    style="width: 250px"
-  />
-  <p style="width: 5rem;">{valueLabel}</p>
+  <input type="range" bind:value={getter, setter} {min} {max} {step} />
+  <p>{valueLabel}</p>
 </div>

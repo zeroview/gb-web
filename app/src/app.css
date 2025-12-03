@@ -126,6 +126,14 @@ main {
   gap: 1rem;
 }
 
+.slider-row input {
+  width: 15rem !important;
+}
+
+.slider-row p {
+  width: 7rem;
+}
+
 .menu-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;

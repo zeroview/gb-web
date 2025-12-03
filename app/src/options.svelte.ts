@@ -26,6 +26,7 @@ export const defaultOptions = {
   paletteIndex: 0,
   speed: 1,
   fast_forward_speed: 2,
+  fpsTarget: 30,
   volume: 100,
   scaleOffset: 0,
   uiTransitions: true,
@@ -58,13 +59,19 @@ export const toEmulatorOptions = (options: Options) => {
 }
 
 export const loadOptions = () => {
+  let defaults = structuredClone(defaultOptions) as any;
   let loaded = localStorage.getItem("options");
   if (loaded !== null) {
-    return JSON.parse(loaded) as Options;
+    // Overwrite default settings if they exist on the loaded object
+    // This handles migration between option versions
+    let loadedOptions = JSON.parse(loaded);
+    Object.keys(defaults).forEach(key => {
+      if (loadedOptions[key] !== undefined) {
+        defaults[key] = loadedOptions[key];
+      }
+    });
   }
-  else {
-    return defaultOptions;
-  }
+  return defaults as Options;
 }
 
 export const saveOptions = (options: Options) => {
