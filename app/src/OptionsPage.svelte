@@ -78,7 +78,7 @@
   }
 </script>
 
-<div class="menu-grid" tabindex="-1">
+<div class="menu-grid options-grid" tabindex="-1">
   <p>Fast forward speed:</p>
   <MenuSlider
     bind:value={options.fast_forward_speed}
@@ -132,7 +132,7 @@
     {options.glowEnabled ? "Enabled" : "Disabled"}
   </button>
   <div
-    class="menu-grid"
+    class="menu-grid options-grid"
     style={"overflow-y: unset;" +
       (options.glowEnabled ? "" : "visibility: hidden;")}
   >

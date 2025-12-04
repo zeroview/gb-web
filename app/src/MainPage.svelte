@@ -42,8 +42,7 @@
 </script>
 
 <h2>{romLoaded ? `Running ${info.name}` : "No cartridge inserted"}</h2>
-<p class="break"></p>
-<div class="button-row">
+<div class="button-row load-buttons">
   {#if romLoaded}
     <button class="img-button" onclick={onReload}>
       <img src={reloadIconUrl} alt="Reload" />
@@ -68,21 +67,19 @@
 </div>
 
 {#if romLoaded}
-  <p class="break"></p>
   <div class="button-row">
     <button onclick={onSaveState} disabled={!romLoaded}>Save state</button>
     <button onclick={onLoadState} disabled={loadStateDisabled}>
       Load state
     </button>
-    <div class="button-row" style="gap:1rem">
+    <div class="button-row" style="flex-direction: row; gap: 1rem;">
       <p>Slot:</p>
       <button onclick={() => onSaveSlotChange(-1)}>&lt;</button>
       <p style="width:2rem; text-align: center">{stateSlot}</p>
       <button onclick={() => onSaveSlotChange(1)}>&gt;</button>
     </div>
   </div>
-  <p class="break"></p>
-  <div class="menu-grid">
+  <div class="menu-grid main-grid">
     <p>Volume:</p>
     <MenuSlider
       bind:value={options.volume}

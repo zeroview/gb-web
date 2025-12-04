@@ -8,6 +8,12 @@
 
 <script lang="ts">
   import logoUrl from "../assets/logo.png";
+  import iconUrl from "../assets/icon.png";
+  import loadIconUrl from "../assets/load.png";
+  import browseIconUrl from "../assets/browse.png";
+  import inputIconUrl from "../assets/input.png";
+  import optionsIconUrl from "../assets/options.png";
+
   import MainPage from "./MainPage.svelte";
   import BrowserPage from "./BrowserPage.svelte";
   import OptionsPage from "./OptionsPage.svelte";
@@ -264,6 +270,15 @@
   let currentPage = $state(0);
   let lastPage = 0;
 
+  const getUseLogoIcon = () => {
+    return window.matchMedia("(max-width: 850px)").matches;
+  };
+  let useLogoIcon = $state(getUseLogoIcon());
+  const getUseSidebarIcons = () => {
+    return window.matchMedia("(max-width: 720px").matches;
+  };
+  let useSidebarIcons = $state(getUseSidebarIcons());
+
   const getTransition = () => {
     if (!options.uiTransitions) {
       // Disable transitions if user wishes
@@ -284,6 +299,10 @@
 <svelte:window
   on:keydown={(event) => input.handleKey(event, true)}
   on:keyup={(event) => input.handleKey(event, false)}
+  on:resize={() => {
+    useLogoIcon = getUseLogoIcon();
+    useSidebarIcons = getUseSidebarIcons();
+  }}
   on:beforeunload={(event) => {
     // If the RAM should be saved on this ROM,
     // notify on tab close about possibility of losing save data
@@ -313,26 +332,30 @@
       class="menu"
       transition:fade={{ duration: options.uiTransitions ? 100 : 0 }}
     >
-      {#snippet menuButton(text: string, pageIndex: number)}
+      {#snippet menuButton(text: string, imgUrl: string, pageIndex: number)}
         <button
           onclick={() => (currentPage = pageIndex)}
           style="{currentPage === pageIndex
             ? 'text-decoration-color: #d1d1d1;'
             : ''}}"
+          class="img-button"
         >
-          {text}
+          <img src={imgUrl} alt={text} />
+          {#if !useSidebarIcons}
+            <p>{text}</p>
+          {/if}
         </button>
       {/snippet}
       <div class="menu-sidebar">
         <a href="https://github.com/zeroview/DMG-2025" class="info-button">
-          <img src={logoUrl} alt="DMG-2025" />
+          <img src={useLogoIcon ? iconUrl : logoUrl} alt="DMG-2025" />
           <p>v. 1.0.0</p>
         </a>
         <div class="menu-sidebar-buttons">
-          {@render menuButton("MAIN", 0)}
-          {@render menuButton("BROWSER", 1)}
-          {@render menuButton("OPTIONS", 2)}
-          {@render menuButton("INPUT", 3)}
+          {@render menuButton("MAIN", loadIconUrl, 0)}
+          {@render menuButton("BROWSER", browseIconUrl, 1)}
+          {@render menuButton("INPUT", inputIconUrl, 2)}
+          {@render menuButton("OPTIONS", optionsIconUrl, 3)}
         </div>
       </div>
       {#if currentPage == 1}
@@ -345,6 +368,10 @@
         </div>
       {:else if currentPage == 2}
         <div class="menu-container" in:fly={getTransition()}>
+          <InputPage {input} />
+        </div>
+      {:else if currentPage == 3}
+        <div class="menu-container" in:fly={getTransition()}>
           <OptionsPage
             bind:options
             {db}
@@ -352,12 +379,8 @@
             errorCallback={showErrorPopup}
           />
         </div>
-      {:else if currentPage == 3}
-        <div class="menu-container" in:fly={getTransition()}>
-          <InputPage {input} />
-        </div>
       {:else}
-        <div class="menu-container" in:fly={getTransition()}>
+        <div class="menu-container main-menu" in:fly={getTransition()}>
           <MainPage
             bind:options
             info={loadedROMInfo}
