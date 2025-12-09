@@ -22,13 +22,29 @@ export const palettes: Record<string, Palette> = {
 };
 export const paletteNames = ["LCD", "Clear", "Raw"]
 
+export enum OnscreenControlsOption {
+  Auto = 0,
+  Visible = 1,
+  Hidden = 2,
+}
+export namespace OnscreenControlsOption {
+  export function incremented(option: OnscreenControlsOption): OnscreenControlsOption {
+    if (option == 2) {
+      return 0;
+    }
+    else {
+      return option + 1
+    }
+  }
+}
+
 export const defaultOptions = {
   paletteIndex: 0,
   speed: 1,
   fast_forward_speed: 2,
   fpsTarget: 30,
   volume: 100,
-  scaleOffset: 0,
+  onScreenControls: OnscreenControlsOption.Auto,
   uiTransitions: true,
   backgroundGlowStrength: 80,
   displayGlowStrength: 40,
@@ -42,11 +58,11 @@ export const defaultOptions = {
 
 export type Options = typeof defaultOptions;
 
-export const toEmulatorOptions = (options: Options) => {
+export const toEmulatorOptions = (options: Options, showOnscreenControls: boolean) => {
   return {
     palette: palettes[paletteNames[options.paletteIndex]],
     volume: options.volume / 100,
-    scale_offset: options.scaleOffset,
+    show_controls: showOnscreenControls,
     background_glow_strength: options.backgroundGlowStrength / 100,
     display_glow_strength: options.displayGlowStrength / 100,
     glow_enabled: options.glowEnabled,

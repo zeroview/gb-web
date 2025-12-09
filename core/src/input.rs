@@ -34,8 +34,10 @@ impl InputReg {
 
     /// Updates input state, returns if interrupt should be requested
     pub fn update(&mut self, input: InputFlag) -> bool {
+        // Flip input bits: on the Game Boy 0 = pressed
+        let parsed = InputFlag::from_bits_truncate(!input.bits());
         // Get buttons that have been pressed (bit has changed from 1 to 0)
-        let pressed = !input.bits() & self.flags.bits();
+        let pressed = !parsed.bits() & self.flags.bits();
         // Mask out pressed button based on selected input type
         let send_interrupt = if self.select_button {
             (pressed >> 4) > 0
@@ -45,7 +47,7 @@ impl InputReg {
             false
         };
         // Return if interrupt should be sent
-        self.flags = input;
+        self.flags = parsed;
         send_interrupt
     }
 }

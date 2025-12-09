@@ -9,8 +9,8 @@
     "tsc": "tsc",
     "check": "svelte-check --tsconfig ./tsconfig.app.json && tsc -p tsconfig.node.json",
     "vite:build": "vite build",
-    "vite:dev": "vite -c vite.config.dev.ts",
-    "vite:preview": "vite preview",
+    "vite:dev": "vite -c vite.config.dev.ts --host",
+    "vite:preview": "vite preview --host",
     "wasm-pack:dev": "wasm-pack build wasm --dev",
     "wasm-pack:release": "wasm-pack build wasm"
   },

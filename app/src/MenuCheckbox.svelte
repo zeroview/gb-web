@@ -3,9 +3,9 @@
   import uncheckedIconUrl from "../assets/checkbox.png";
   let {
     value = $bindable(),
-    label,
-    featured,
-  }: { value: boolean; label: string; featured?: boolean } = $props();
+    label = "",
+    featured = false,
+  }: { value: boolean; label?: string; featured?: boolean } = $props();
 </script>
 
 <button

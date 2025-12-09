@@ -25,7 +25,9 @@ pub struct Renderer {
     background_texture: Texture,
     texture_bind_group_layout: wgpu::BindGroupLayout,
 
-    scale_offset: i32,
+    background_definition: BackgroundDefinition,
+    background_rendered_rect: Rect,
+    show_controls: bool,
     display_options: UniformBuffer<DisplayOptionsUniform>,
     display: UniformBuffer<DisplayBufferUniform>,
     blur_options: UniformBuffer<BlurOptionsUniform>,
@@ -86,7 +88,10 @@ impl Renderer {
         })
     }
 
-    pub async fn new(window: Arc<Window>) -> anyhow::Result<Self> {
+    pub async fn new(
+        window: Arc<Window>,
+        background_definition: BackgroundDefinition,
+    ) -> anyhow::Result<Self> {
         let size = window.inner_size();
 
         // The instance is a handle to our GPU
@@ -183,14 +188,11 @@ impl Renderer {
             &[&texture_bind_group_layout, &blur_options.bind_group_layout],
         );
 
-        let mut final_options = UniformBuffer::<FinalOptionsUniform>::new(&device, "Final Options");
-
+        let final_options = UniformBuffer::<FinalOptionsUniform>::new(&device, "Final Options");
         // Load background image into a byte array
-        let background_png = include_bytes!("background.png");
+        let background_png = include_bytes!("../assets/background.png");
         let background_image = image::load_from_memory(background_png).unwrap();
         let background_rgba = background_image.to_rgba8();
-        final_options.background_display_origin = [447, 410];
-        final_options.background_display_size = [943, 861];
         // Initialize background texture
         let background_texture_size = wgpu::Extent3d {
             width: background_rgba.width(),
@@ -235,6 +237,7 @@ impl Renderer {
                 &texture_bind_group_layout,
                 // Background texture
                 &texture_bind_group_layout,
+                // Options
                 &final_options.bind_group_layout,
             ],
         );
@@ -257,7 +260,9 @@ impl Renderer {
             background_texture,
             texture_bind_group_layout,
 
-            scale_offset: 0,
+            background_definition,
+            background_rendered_rect: Rect::default(),
+            show_controls: false,
             display_options: options,
             display,
             blur_options,
@@ -440,36 +445,84 @@ impl Renderer {
                 "Vertical Blur Texture",
             ));
 
-            // Calculate pixel scale as the possible largest integer scale
-            // which still fits display in both dimensions
-            let mut scale = (width / 160).min(height / 144);
-            // Apply option offset to scale
-            scale = (scale.saturating_add_signed(self.scale_offset)).max(1);
-            // Calculate size of the display
-            let display_size = [160 * scale, 144 * scale];
-            // Calculate top-left origin in pixel space for centered canvas
-            let display_origin = [
-                (width as i32 - display_size[0] as i32) / 2,
-                (height as i32 - display_size[1] as i32) / 2,
-            ];
+            let surface_size = Vector::new(Fp::from(width as i16), Fp::from(height as i16));
+            let lcd_size = Vector::new(Fp::from(160), Fp::from(144));
+
+            let (display_scale, display_origin, display_size) = if self.show_controls {
+                let controls_size = self.background_definition.controls.size;
+                let display_size = self.background_definition.display.size;
+
+                let controls_scale =
+                    (surface_size.x / controls_size.x).min(surface_size.y / controls_size.y);
+                let fitted_controls_size = controls_size * controls_scale;
+
+                let rect_diff = controls_size / display_size;
+                let fitted_display_size = fitted_controls_size / rect_diff;
+
+                let display_scale = fitted_display_size / lcd_size;
+                let display_scale_rounded = display_scale.x.floor().min(display_scale.y.floor());
+                let pixel_scale = display_scale_rounded * lcd_size / display_size;
+
+                let final_controls_size = display_scale_rounded * lcd_size * rect_diff;
+                let controls_origin = (surface_size - final_controls_size) / 2;
+                let rect_pos_diff = self.background_definition.display.pos
+                    - self.background_definition.controls.pos;
+                let origin = controls_origin + (rect_pos_diff * pixel_scale);
+                (
+                    i16::from(display_scale_rounded) as u32,
+                    origin,
+                    lcd_size * display_scale_rounded,
+                )
+            } else {
+                // Calculate pixel scale as the possible largest integer scale
+                // which still fits display in both dimensions
+                let mut scale = (width / 160).min(height / 144);
+                // Calculate size of the display
+                let size = lcd_size * scale as i16;
+                // Calculate top-left origin in pixel space for centered canvas
+                let origin = (surface_size - size) / 2;
+                (scale, origin, size)
+            };
+
+            let background_scale = display_size / self.background_definition.display.size;
+            let background_size = self.background_texture.size() * background_scale;
+            let background_origin =
+                display_origin - (self.background_definition.display.pos * background_scale);
+
+            fn vec_to_buffer_rounded(vector: &Vector) -> [i32; 2] {
+                [vector.x.round().into(), vector.y.round().into()]
+            }
+            fn vec_to_buffer(vector: &Vector) -> [f32; 2] {
+                [vector.x.into(), vector.y.into()]
+            }
 
             // Update options
-            self.display_options.scale = scale;
-            self.display_options.origin = display_origin;
+            self.background_rendered_rect = Rect::new(background_origin, background_size);
+            self.display_options.scale = display_scale;
+            self.display_options.origin = vec_to_buffer_rounded(&display_origin);
             self.display_options.update_buffer(&self.queue);
-            self.blur_options.resolution[0] = (width / scale) as f32;
-            self.blur_options.resolution[1] = (height / scale) as f32;
+            self.blur_options.resolution[0] = (width / display_scale) as f32;
+            self.blur_options.resolution[1] = (height / display_scale) as f32;
             self.blur_options.update_buffer(&self.queue);
-            self.final_options.display_origin = display_origin;
-            self.final_options.display_size = display_size;
+            self.final_options.display_origin = vec_to_buffer_rounded(&display_origin);
+            self.final_options.display_size = vec_to_buffer_rounded(&display_size);
+            self.final_options.background_origin = vec_to_buffer(&background_origin);
+            self.final_options.background_size = vec_to_buffer(&background_size);
             self.final_options.viewport_size = [width, height];
             self.final_options.update_buffer(&self.queue);
         }
     }
 
+    pub fn get_pos_in_background(&self, pos: Vector) -> Vector {
+        let bg_rect = self.background_rendered_rect;
+        let tx_size = self.background_texture.size();
+        let uv = (pos - bg_rect.pos) / bg_rect.size;
+        uv * tx_size
+    }
+
     pub fn update_options(&mut self, options: &EmulatorOptions) {
-        if self.scale_offset != options.scale_offset {
-            self.scale_offset = options.scale_offset;
+        if self.show_controls != options.show_controls {
+            self.show_controls = options.show_controls;
             self.resize(self.config.width, self.config.height);
         }
         self.display_options.palette = options.palette;

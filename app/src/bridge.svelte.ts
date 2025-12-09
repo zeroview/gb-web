@@ -9,6 +9,7 @@ export default class EmulatorBridge {
   private speed = 0;
   private maxFrameTime: number = 0;
   public running = $state(false);
+  public showOnscreenControls: boolean = false;
 
   initialize = (options: Options) => {
     this.proxy = spawn_event_loop();
@@ -103,7 +104,7 @@ export default class EmulatorBridge {
       return;
     }
     this.maxFrameTime = (1 / options.fpsTarget) * 1000;
-    return this.proxy.query({ UpdateOptions: { options: toEmulatorOptions(options) } }) as Promise<void>;
+    return this.proxy.query({ UpdateOptions: { options: toEmulatorOptions(options, this.showOnscreenControls) } }) as Promise<void>;
   }
 
   updateInput = async (input: string, pressed: boolean) => {
@@ -111,5 +112,20 @@ export default class EmulatorBridge {
       return;
     }
     return this.proxy.query({ UpdateInput: { input, pressed } }) as Promise<void>;
+  }
+
+  updatePointerPos = async (id: number, x: number, y: number) => {
+    if (!this.proxy) {
+      return;
+    }
+    return this.proxy.query({ UpdatePointerPos: { id, pos: [x, y] } }) as Promise<void>;
+  }
+
+  updatePointerPressed = async (id: number, pressed: boolean) => {
+    if (!this.proxy) {
+      return;
+    }
+
+    return this.proxy.query({ UpdatePointerPressed: { id, pressed } }) as Promise<void>;
   }
 }

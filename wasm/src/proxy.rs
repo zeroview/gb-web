@@ -40,7 +40,7 @@ impl Default for Palette {
 #[tsify(from_wasm_abi)]
 pub struct EmulatorOptions {
     pub volume: f32,
-    pub scale_offset: i32,
+    pub show_controls: bool,
     pub display_glow_strength: f32,
     pub background_glow_strength: f32,
     pub glow_enabled: bool,
@@ -95,6 +95,14 @@ pub enum BridgeQuery {
     UpdateInput {
         input: String,
         pressed: bool,
+    },
+    UpdatePointerPos {
+        pos: [f32; 2],
+        id: i32,
+    },
+    UpdatePointerPressed {
+        pressed: bool,
+        id: i32,
     },
     UpdateOptions {
         options: EmulatorOptions,

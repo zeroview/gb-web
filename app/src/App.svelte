@@ -9,10 +9,12 @@
 <script lang="ts">
   import logoUrl from "../assets/logo.png";
   import iconUrl from "../assets/icon.png";
-  import loadIconUrl from "../assets/load.png";
+  import playIconUrl from "../assets/play.png";
   import browseIconUrl from "../assets/browse.png";
   import inputIconUrl from "../assets/input.png";
   import optionsIconUrl from "../assets/options.png";
+  import pauseIconUrl from "../assets/pause.png";
+  import fastForwardIconUrl from "../assets/fastforward.png";
 
   import MainPage from "./MainPage.svelte";
   import BrowserPage from "./BrowserPage.svelte";
@@ -24,7 +26,11 @@
   import Database from "./db.svelte";
 
   import { fade, fly } from "svelte/transition";
-  import { loadOptions, saveOptions } from "./options.svelte";
+  import {
+    loadOptions,
+    OnscreenControlsOption,
+    saveOptions,
+  } from "./options.svelte";
   import { onMount, tick } from "svelte";
 
   // Handler initialization
@@ -165,14 +171,16 @@
       `Loaded ROM file "${name}". Header: "${info.title}" Hash: ${info.hash}`,
     );
     if (!hasRomBeenLoaded) {
-      showPopup(
-        "Press Esc to return to menu\nCheck Input page for controls",
-        6000,
-      );
+      if (!bridge.showOnscreenControls) {
+        showPopup("Check Input page for controls", 6000);
+      }
       hasRomBeenLoaded = true;
     }
     // Start emulation
     bridge.toggle_execution();
+    setTimeout(() => {
+      currentPage = 0;
+    }, 100);
   };
 
   const reload = async () => {
@@ -191,14 +199,17 @@
   /// Global options for emulator, saved automatically into LocalStorage
   let options = $state(loadOptions());
   $effect(() => {
+    // Update options on state change
     bridge.setSpeed(options.speed);
+    if (options.onScreenControls != OnscreenControlsOption.Auto) {
+      bridge.showOnscreenControls =
+        options.onScreenControls == OnscreenControlsOption.Visible;
+    }
     bridge.updateOptions(options);
     saveOptions(options);
   });
 
-  /// Input manager saves keybinds and calls callbacks on input
-  let input = new InputManager();
-  input.onPause(() => {
+  const pause = () => {
     if (!hasRomBeenLoaded) {
       return;
     }
@@ -207,7 +218,11 @@
     if (!bridge.running) {
       saveRAM();
     }
-  });
+  };
+
+  /// Input manager saves keybinds and calls callbacks on input
+  let input = new InputManager();
+  input.onPause(pause);
   input.onControlInput((input, pressed) => {
     bridge.updateInput(input, pressed);
   });
@@ -219,16 +234,6 @@
       showInfoPopup(`Selected state slot ${stateSlot}`);
     }
     switch (keybind) {
-      case "Zoom in":
-        if (pressed) {
-          options.scaleOffset = Math.min(options.scaleOffset + 1, 5);
-        }
-        break;
-      case "Zoom out":
-        if (pressed) {
-          options.scaleOffset = Math.max(options.scaleOffset - 1, -5);
-        }
-        break;
       case "Fast forward":
         if (pressed) {
           bridge.setSpeed(options.fast_forward_speed);
@@ -297,8 +302,6 @@
 </script>
 
 <svelte:window
-  on:keydown={(event) => input.handleKey(event, true)}
-  on:keyup={(event) => input.handleKey(event, false)}
   on:resize={() => {
     useLogoIcon = getUseLogoIcon();
     useSidebarIcons = getUseSidebarIcons();
@@ -315,6 +318,79 @@
   }}
 />
 
+<svelte:document
+  on:keydown={(event) => {
+    if (
+      options.onScreenControls == OnscreenControlsOption.Auto &&
+      bridge.showOnscreenControls
+    ) {
+      bridge.showOnscreenControls = false;
+      bridge.updateOptions(options);
+    }
+    input.handleKey(event, true);
+  }}
+  on:keyup={(event) => input.handleKey(event, false)}
+  on:pointermove={(event) => {
+    bridge.updatePointerPos(
+      -1,
+      event.clientX * window.devicePixelRatio,
+      event.clientY * window.devicePixelRatio,
+    );
+  }}
+  on:pointerdown={(event) => {
+    bridge.updatePointerPressed(-1, true).then(() => {
+      bridge.updatePointerPos(
+        -1,
+        event.clientX * window.devicePixelRatio,
+        event.clientY * window.devicePixelRatio,
+      );
+    });
+  }}
+  on:pointerup={() => {
+    bridge.updatePointerPressed(-1, false);
+  }}
+  on:touchmove={(event) => {
+    for (let i = 0; i < event.changedTouches.length; i++) {
+      let touch = event.changedTouches[i];
+      bridge.updatePointerPos(
+        touch.identifier,
+        touch.clientX * window.devicePixelRatio,
+        touch.clientY * window.devicePixelRatio,
+      );
+    }
+  }}
+  on:touchstart={(event) => {
+    if (
+      options.onScreenControls == OnscreenControlsOption.Auto &&
+      !bridge.showOnscreenControls
+    ) {
+      bridge.showOnscreenControls = true;
+      bridge.updateOptions(options);
+    }
+    for (let i = 0; i < event.changedTouches.length; i++) {
+      let touch = event.changedTouches[i];
+      bridge.updatePointerPressed(touch.identifier, true);
+      bridge.updatePointerPos(
+        touch.identifier,
+        touch.clientX * window.devicePixelRatio,
+        touch.clientY * window.devicePixelRatio,
+      );
+    }
+  }}
+  on:touchend={(event) => {
+    for (let i = 0; i < event.changedTouches.length; i++) {
+      let touch = event.changedTouches[i];
+      bridge.updatePointerPressed(touch.identifier, false);
+    }
+  }}
+  on:touchcancel={(event) => {
+    for (let i = 0; i < event.changedTouches.length; i++) {
+      let touch = event.changedTouches[i];
+      bridge.updatePointerPressed(touch.identifier, false);
+    }
+  }}
+/>
+
 <main>
   {#if popupVisible}
     <p
@@ -327,6 +403,7 @@
     </p>
   {/if}
   <canvas id="canvas" tabindex="-1"></canvas>
+
   {#if !bridge.running}
     <div
       class="menu"
@@ -352,7 +429,7 @@
           <p>v. 1.0.0</p>
         </a>
         <div class="menu-sidebar-buttons">
-          {@render menuButton("MAIN", loadIconUrl, 0)}
+          {@render menuButton("PLAY", playIconUrl, 0)}
           {@render menuButton("BROWSER", browseIconUrl, 1)}
           {@render menuButton("INPUT", inputIconUrl, 2)}
           {@render menuButton("OPTIONS", optionsIconUrl, 3)}
@@ -387,6 +464,7 @@
             onBrowse={() => (currentPage = 1)}
             onLoadRom={loadROM}
             onReload={reload}
+            onResume={pause}
             onSaveState={saveState}
             onLoadState={loadState}
             onSaveSlotChange={changeSaveSlot}
@@ -397,5 +475,26 @@
         </div>
       {/if}
     </div>
+  {:else}
+    <button
+      class="ui-button"
+      style="left:0"
+      onclick={pause}
+      draggable="false"
+      transition:fade={{ duration: options.uiTransitions ? 100 : 0 }}
+    >
+      <img src={pauseIconUrl} alt="Pause" draggable="false" />
+    </button>
+    <button
+      class="ui-button"
+      style="right:0"
+      ontouchstart={() => bridge.setSpeed(options.fast_forward_speed)}
+      ontouchend={() => bridge.setSpeed(options.speed)}
+      onmousedown={() => bridge.setSpeed(options.fast_forward_speed)}
+      onmouseup={() => bridge.setSpeed(options.speed)}
+      transition:fade={{ duration: options.uiTransitions ? 100 : 0 }}
+    >
+      <img src={fastForwardIconUrl} alt="Fast-forward" draggable="false" />
+    </button>
   {/if}
 </main>

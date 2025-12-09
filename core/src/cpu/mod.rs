@@ -75,7 +75,9 @@ impl CPU {
         &self.ppu.display
     }
 
-    /// Updates input state
+    /// Updates input state.
+    /// For easier interfacing, in this input byte 0 = not pressed and 1 = pressed,
+    /// as opposed to how it is actually in the Game Boy's memory
     pub fn update_input(&mut self, input: &InputFlag) {
         if self.input.update(*input) {
             self.request_interrupt(InterruptFlag::JOYPAD);

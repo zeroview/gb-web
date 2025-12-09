@@ -45,10 +45,10 @@ pub struct FinalOptionsUniform {
     pub ambient_light: f32,
 
     pub display_origin: [i32; 2],
-    pub display_size: [u32; 2],
+    pub display_size: [i32; 2],
 
-    pub background_display_origin: [u32; 2],
-    pub background_display_size: [u32; 2],
+    pub background_origin: [f32; 2],
+    pub background_size: [f32; 2],
 
     pub viewport_size: [u32; 2],
     _pad: [u32; 2],
@@ -180,5 +180,10 @@ impl Texture {
             texture_view,
             bind_group,
         }
+    }
+
+    pub fn size(&self) -> Vector {
+        let size = self.texture.size();
+        Vector::new(Fp::from(size.width as i16), Fp::from(size.height as i16))
     }
 }

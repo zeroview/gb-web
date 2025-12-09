@@ -27,8 +27,6 @@ const defaultKeybinds = {
   "State slot 8": "8",
   "State slot 9": "9",
   "State slot 10": "0",
-  "Zoom in": "+",
-  "Zoom out": "-",
 };
 type Keybinds = typeof defaultKeybinds;
 type KeybindName = keyof Keybinds;

@@ -2,6 +2,7 @@
   import reloadIconUrl from "../assets/reload.png";
   import loadIconUrl from "../assets/load.png";
   import browseIconUrl from "../assets/browse.png";
+  import playIconUrl from "../assets/play.png";
 
   import { type Options } from "./options.svelte";
   import FilePicker from "./FilePicker.svelte";
@@ -17,6 +18,7 @@
     onSaveSlotChange,
     onLoadRom,
     onReload,
+    onResume,
     romLoaded,
     loadStateDisabled,
     stateSlot,
@@ -29,6 +31,7 @@
     onSaveSlotChange: (change: number) => void;
     onLoadRom: (rom: ArrayBuffer, name: string, isZip: boolean) => void;
     onReload: () => void;
+    onResume: () => void;
     romLoaded: boolean;
     loadStateDisabled: boolean;
     stateSlot: number;
@@ -41,7 +44,14 @@
   ];
 </script>
 
-<h2>{romLoaded ? `Running ${info.name}` : "No cartridge inserted"}</h2>
+{#if romLoaded}
+  <button class="large img-button" onclick={onResume}>
+    <img src={playIconUrl} alt="Resume" />
+    <h2>{`Resume ${info.name}`}</h2>
+  </button>
+{:else}
+  <h2>No cartridge inserted</h2>
+{/if}
 <div class="button-row load-buttons">
   {#if romLoaded}
     <button class="img-button" onclick={onReload}>

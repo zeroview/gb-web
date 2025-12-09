@@ -2,7 +2,11 @@
   import Database from "./db.svelte";
   import FilePicker from "./FilePicker.svelte";
   import MenuSlider from "./MenuSlider.svelte";
-  import { defaultOptions, type Options } from "./options.svelte";
+  import {
+    defaultOptions,
+    type Options,
+    OnscreenControlsOption,
+  } from "./options.svelte";
   import { paletteNames } from "./options.svelte";
 
   let {
@@ -69,13 +73,24 @@
       .catch(errorCallback);
   };
 
-  function swapPalette() {
+  const swapPalette = () => {
     if (options.paletteIndex == paletteNames.length - 1) {
       options.paletteIndex = 0;
     } else {
       options.paletteIndex++;
     }
-  }
+  };
+
+  const formatOnscreenControls = (option: OnscreenControlsOption) => {
+    switch (option) {
+      case OnscreenControlsOption.Auto:
+        return "Auto";
+      case OnscreenControlsOption.Visible:
+        return "Visible";
+      case OnscreenControlsOption.Hidden:
+        return "Hidden";
+    }
+  };
 </script>
 
 <div class="menu-grid options-grid" tabindex="-1">
@@ -98,8 +113,15 @@
   />
 
   <p class="break"></p>
-  <p>Scaling offset (zoom):</p>
-  <MenuSlider bind:value={options.scaleOffset} min={-5} max={5} step={1} />
+  <p>On-screen controls:</p>
+  <button
+    onclick={() =>
+      (options.onScreenControls = OnscreenControlsOption.incremented(
+        options.onScreenControls,
+      ))}
+  >
+    {formatOnscreenControls(options.onScreenControls)}
+  </button>
   <p>Color palette:</p>
   <button onclick={swapPalette}>{paletteNames[options.paletteIndex]}</button>
   <p>Background brightness:</p>
