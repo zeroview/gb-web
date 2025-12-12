@@ -448,47 +448,63 @@ impl Renderer {
             let surface_size = Vector::new(Fp::from(width as i16), Fp::from(height as i16));
             let lcd_size = Vector::new(Fp::from(160), Fp::from(144));
 
+            // If the on-screen controls should be shown, display is placed so part of the
+            // background image containing the controls is fully visible.
+            // Otherwise display is centered and scaled to fit
+            // In both cases, the display is scaled so pixels have an even integer scale
             let (display_scale, display_origin, display_size) = if self.show_controls {
-                let controls_size = self.background_definition.controls.size;
-                let display_size = self.background_definition.display.size;
+                // The rectangles are defined with the background image
+                let controls_rect = self.background_definition.controls;
+                let display_rect = self.background_definition.display;
 
-                let controls_scale =
-                    (surface_size.x / controls_size.x).min(surface_size.y / controls_size.y);
-                let fitted_controls_size = controls_size * controls_scale;
+                // Fit the rectangle containing controls onto the screen
+                let controls_scale = (surface_size.x / controls_rect.size.x)
+                    .min(surface_size.y / controls_rect.size.y);
+                let fitted_controls_size = controls_rect.size * controls_scale;
 
-                let rect_diff = controls_size / display_size;
+                // Calculate size of display in fitted rectangle
+                let rect_diff = controls_rect.size / display_rect.size;
                 let fitted_display_size = fitted_controls_size / rect_diff;
 
+                // Calculate scale at which the display pixel scale will be an integer
                 let display_scale = fitted_display_size / lcd_size;
                 let display_scale_rounded = display_scale.x.floor().min(display_scale.y.floor());
-                let pixel_scale = display_scale_rounded * lcd_size / display_size;
+                let pixel_scale = display_scale_rounded * lcd_size / display_rect.size;
 
+                // Calculate actual size of control rectangle
                 let final_controls_size = display_scale_rounded * lcd_size * rect_diff;
+                // Calculate the origin of the display
                 let controls_origin = (surface_size - final_controls_size) / 2;
-                let rect_pos_diff = self.background_definition.display.pos
-                    - self.background_definition.controls.pos;
-                let origin = controls_origin + (rect_pos_diff * pixel_scale);
+                let rect_pos_diff = display_rect.pos - controls_rect.pos;
+                let display_origin = controls_origin + (rect_pos_diff * pixel_scale);
+
                 (
-                    i16::from(display_scale_rounded) as u32,
-                    origin,
+                    display_scale_rounded,
+                    display_origin,
                     lcd_size * display_scale_rounded,
                 )
             } else {
                 // Calculate pixel scale as the possible largest integer scale
                 // which still fits display in both dimensions
-                let mut scale = (width / 160).min(height / 144);
+                let scale = (surface_size.x / lcd_size.x)
+                    .min(surface_size.y / lcd_size.y)
+                    .floor();
                 // Calculate size of the display
-                let size = lcd_size * scale as i16;
+                let size = lcd_size * scale;
                 // Calculate top-left origin in pixel space for centered canvas
                 let origin = (surface_size - size) / 2;
+
                 (scale, origin, size)
             };
 
+            // Scale the background to match the display position and scale
             let background_scale = display_size / self.background_definition.display.size;
             let background_size = self.background_texture.size() * background_scale;
             let background_origin =
                 display_origin - (self.background_definition.display.pos * background_scale);
 
+            // Helper functions to convert fixed point vectors into arrays that can be passed into
+            // shader
             fn vec_to_buffer_rounded(vector: &Vector) -> [i32; 2] {
                 [vector.x.round().into(), vector.y.round().into()]
             }
@@ -498,11 +514,11 @@ impl Renderer {
 
             // Update options
             self.background_rendered_rect = Rect::new(background_origin, background_size);
-            self.display_options.scale = display_scale;
+            self.display_options.scale = i16::from(display_scale) as u32;
             self.display_options.origin = vec_to_buffer_rounded(&display_origin);
             self.display_options.update_buffer(&self.queue);
-            self.blur_options.resolution[0] = (width / display_scale) as f32;
-            self.blur_options.resolution[1] = (height / display_scale) as f32;
+            self.blur_options.resolution[0] = f32::from(surface_size.x / display_scale);
+            self.blur_options.resolution[1] = f32::from(surface_size.y / display_scale);
             self.blur_options.update_buffer(&self.queue);
             self.final_options.display_origin = vec_to_buffer_rounded(&display_origin);
             self.final_options.display_size = vec_to_buffer_rounded(&display_size);

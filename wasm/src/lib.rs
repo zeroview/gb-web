@@ -19,85 +19,14 @@ use winit::{
 
 mod audio;
 use audio::*;
+mod config;
+use config::*;
 mod renderer;
 use renderer::*;
 mod proxy;
 use proxy::*;
 
 const CANVAS_ID: &str = "canvas";
-
-#[derive(Debug, serde::Deserialize)]
-struct SerializedRect(i16, i16, i16, i16);
-
-impl SerializedRect {
-    pub fn to_rect(&self) -> Rect {
-        Rect::new(
-            Vector::new(Fp::from(self.0), Fp::from(self.1)),
-            Vector::new(Fp::from(self.2), Fp::from(self.3)),
-        )
-    }
-}
-
-#[derive(Debug, serde::Deserialize)]
-struct BackgroundDefinitionSerialized {
-    controls: SerializedRect,
-    display: SerializedRect,
-    a: SerializedRect,
-    b: SerializedRect,
-    left: SerializedRect,
-    right: SerializedRect,
-    up: SerializedRect,
-    down: SerializedRect,
-    select: SerializedRect,
-    start: SerializedRect,
-}
-
-#[derive(Debug, Clone)]
-pub struct BackgroundDefinition {
-    controls: Rect,
-    display: Rect,
-    a: Rect,
-    b: Rect,
-    left: Rect,
-    right: Rect,
-    up: Rect,
-    down: Rect,
-    select: Rect,
-    start: Rect,
-}
-
-impl BackgroundDefinition {
-    pub fn get_input_rect(&self, input: InputFlag) -> Rect {
-        match input {
-            InputFlag::START => self.start,
-            InputFlag::SELECT => self.select,
-            InputFlag::A => self.a,
-            InputFlag::B => self.b,
-            InputFlag::UP => self.up,
-            InputFlag::DOWN => self.down,
-            InputFlag::LEFT => self.left,
-            InputFlag::RIGHT => self.right,
-            _ => unreachable!(),
-        }
-    }
-}
-
-impl From<BackgroundDefinitionSerialized> for BackgroundDefinition {
-    fn from(value: BackgroundDefinitionSerialized) -> Self {
-        Self {
-            controls: value.controls.to_rect(),
-            display: value.display.to_rect(),
-            a: value.a.to_rect(),
-            b: value.b.to_rect(),
-            left: value.left.to_rect(),
-            right: value.right.to_rect(),
-            up: value.up.to_rect(),
-            down: value.down.to_rect(),
-            select: value.select.to_rect(),
-            start: value.start.to_rect(),
-        }
-    }
-}
 
 #[wasm_bindgen]
 pub fn spawn_event_loop() -> Result<Proxy, JsValue> {
@@ -132,13 +61,10 @@ pub struct App {
 
 impl App {
     pub fn new(event_loop: &EventLoop<UserEvent>) -> Self {
-        let background_definition_file = include_str!("./assets/background_definition.toml");
-        let background_serialized: BackgroundDefinitionSerialized =
-            Figment::from(Toml::string(background_definition_file))
-                .extract()
-                .expect("Couldn't deserialize background definition");
         Self {
-            background_def: background_serialized.into(),
+            background_def: BackgroundDefinition::from_str(include_str!(
+                "./assets/background_definition.toml"
+            )),
             proxy: Some(event_loop.create_proxy()),
             renderer: None,
             options: EmulatorOptions::default(),

@@ -67,46 +67,43 @@ pub struct ROMInfo {
 #[derive(Tsify, Debug, Clone, Serialize, Deserialize)]
 #[tsify(from_wasm_abi)]
 pub enum BridgeQuery {
+    /// Loads a new ROM into emulator
     LoadROM {
         #[tsify(type = "Uint8Array")]
         file: Vec<u8>,
         is_zip: bool,
     },
+    /// Restarts emulator with previously loaded ROM
     Reload {},
+    /// Sets the external RAM from save file
     LoadRAM {
         #[tsify(type = "Uint8Array")]
         ram: Vec<u8>,
     },
-    RunCPU {
-        millis: f32,
-    },
+    /// Runs the emulator for given amount of milliseconds
+    RunCPU { millis: f32 },
+    /// Serializes the external RAM
     SaveRAM {},
+    /// Serializes the entire emulator state
     SerializeCPU {},
+    /// Loads the emulator state from serialized state
     DeserializeCPU {
         #[tsify(type = "Uint8Array")]
         buffer: Vec<u8>,
     },
-    SetPaused {
-        paused: bool,
-    },
-    SetSpeed {
-        speed: f32,
-    },
-    UpdateInput {
-        input: String,
-        pressed: bool,
-    },
-    UpdatePointerPos {
-        pos: [f32; 2],
-        id: i32,
-    },
-    UpdatePointerPressed {
-        pressed: bool,
-        id: i32,
-    },
-    UpdateOptions {
-        options: EmulatorOptions,
-    },
+    /// Toggles pause state
+    SetPaused { paused: bool },
+    /// Sets emulation speed
+    SetSpeed { speed: f32 },
+    /// Updates input state
+    UpdateInput { input: String, pressed: bool },
+    /// Updates the position of a pointer,
+    /// used for onscreen input controls
+    UpdatePointerPos { pos: [f32; 2], id: i32 },
+    /// Updates the pressed state of a pointer
+    UpdatePointerPressed { pressed: bool, id: i32 },
+    /// Updates options struct and applies changes to emulation
+    UpdateOptions { options: EmulatorOptions },
 }
 
 #[wasm_bindgen]
