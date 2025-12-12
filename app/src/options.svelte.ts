@@ -42,18 +42,18 @@ export const defaultOptions = {
   paletteIndex: 0,
   speed: 1,
   fast_forward_speed: 2,
-  fpsTarget: 30,
+  fpsTarget: 10,
   volume: 100,
   onScreenControls: OnscreenControlsOption.Auto,
   uiTransitions: true,
   backgroundGlowStrength: 80,
-  displayGlowStrength: 40,
+  displayGlowStrength: 65,
   glowEnabled: true,
-  glowQuality: 4,
+  glowQuality: 3,
   glowRadius: 0.5,
   scanlineStrength: 20,
   scanlineSize: 0.25,
-  ambientLight: 70,
+  ambientLight: 90,
 };
 
 export type Options = typeof defaultOptions;
