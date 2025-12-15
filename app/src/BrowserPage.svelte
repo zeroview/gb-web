@@ -1,6 +1,7 @@
 <script lang="ts">
   import cartridgeImageUrl from "../assets/cartridge.png";
   import playIconUrl from "../assets/play.png";
+  import loadingAnimationUrl from "../assets/loading.gif";
 
   import Fuse from "fuse.js";
   import MenuCheckbox from "./MenuCheckbox.svelte";
@@ -67,7 +68,12 @@
     }
   });
 
+  let loading = $state(false);
   function load(url: string, name: string) {
+    if (loading) {
+      return;
+    }
+    loading = true;
     fetch(url, { priority: "high" }).then((response) => {
       response.arrayBuffer().then((rom) => {
         onLoadRom(rom, name, false);
@@ -107,9 +113,10 @@
             src={roms[title].image_url ?? cartridgeImageUrl}
             alt={title}
             loading="lazy"
+            fetchpriority="low"
           />
           <div>
-            <img src={playIconUrl} alt="Play" />
+            <img src={loading ? loadingAnimationUrl : playIconUrl} alt="Play" />
           </div>
         </button>
 

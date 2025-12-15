@@ -419,6 +419,15 @@ main {
   white-space: pre-line;
 }
 
+.loading {
+  position: fixed;
+  z-index: 1;
+  bottom: 1rem;
+  right: 2rem;
+  height: 2rem;
+  image-rendering: pixelated;
+}
+
 p,
 h3,
 h2 {

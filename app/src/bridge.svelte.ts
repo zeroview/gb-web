@@ -1,4 +1,4 @@
-import { spawn_event_loop, Proxy, ROMInfo } from "DMG-2025";
+import type { ROMInfo, Proxy } from "DMG-2025";
 import type { Options } from "./options.svelte";
 import { toEmulatorOptions } from "./options.svelte";
 
@@ -8,39 +8,42 @@ export default class EmulatorBridge {
 
   private speed = 0;
   private maxFrameTime: number = 0;
+  public initialized = $state(false);
   public running = $state(false);
   public showOnscreenControls: boolean = false;
 
-  initialize = (options: Options) => {
-    this.proxy = spawn_event_loop();
+  initialize = async (options: Options) => {
+    const wasm = await import("DMG-2025");
+    this.proxy = wasm.spawn_event_loop();
     this.updateOptions(options);
     this.setSpeed(options.speed);
+    this.initialized = true;
   }
 
   loadROM = async (rom: ArrayBuffer, isZip: boolean) => {
     if (!this.proxy) {
-      throw new ReferenceError("Emulator is not initialized");
+      throw new Error("Emulator is not initialized");
     }
     return this.proxy.query({ LoadROM: { file: new Uint8Array(rom), is_zip: isZip } }) as Promise<ROMInfo>;
   }
 
   reload = async () => {
     if (!this.proxy) {
-      throw new ReferenceError("Emulator is not initialized");
+      throw new Error("Emulator is not initialized");
     }
     return this.proxy.query({ Reload: {} }) as Promise<void>;
   }
 
   loadRAM = async (ram: Uint8Array) => {
     if (!this.proxy) {
-      throw new ReferenceError("Emulator is not initialized");
+      throw new Error("Emulator is not initialized");
     }
     return this.proxy.query({ LoadRAM: { ram } }) as Promise<void>;
   }
 
   toggle_execution = () => {
     if (!this.proxy) {
-      throw new ReferenceError("Emulator is not initialized");
+      throw new Error("Emulator is not initialized");
     }
 
     this.running = !this.running;
@@ -72,21 +75,21 @@ export default class EmulatorBridge {
 
   saveRAM = async () => {
     if (!this.proxy) {
-      throw new ReferenceError("Emulator is not initialized");
+      throw new Error("Emulator is not initialized");
     }
     return this.proxy.query({ SaveRAM: {} }) as Promise<Uint8Array>;
   }
 
   serializeCPU = async () => {
     if (!this.proxy) {
-      throw new ReferenceError("Emulator is not initialized");
+      throw new Error("Emulator is not initialized");
     }
     return this.proxy.query({ SerializeCPU: {} }) as Promise<Uint8Array>;
   }
 
   deserializeCPU = async (buffer: Uint8Array) => {
     if (!this.proxy) {
-      throw new ReferenceError("Emulator is not initialized");
+      throw new Error("Emulator is not initialized");
     }
     return this.proxy.query({ DeserializeCPU: { buffer } }) as Promise<void>;
   }

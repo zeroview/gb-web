@@ -15,6 +15,7 @@
   import optionsIconUrl from "../assets/options.png";
   import pauseIconUrl from "../assets/pause.png";
   import fastForwardIconUrl from "../assets/fastforward.png";
+  import loadingAnimationUrl from "../assets/loading.gif";
 
   import MainPage from "./MainPage.svelte";
   import BrowserPage from "./BrowserPage.svelte";
@@ -298,7 +299,11 @@
     return { y: sign * transitionLength, duration: transitionDuration };
   };
 
-  onMount(() => bridge.initialize(options));
+  onMount(async () => {
+    showInfoPopup("Downloading emulator...");
+    await bridge.initialize(options);
+    showInfoPopup("Emulator initialized!");
+  });
 </script>
 
 <svelte:window
@@ -401,6 +406,9 @@
     >
       {popupText}
     </p>
+  {/if}
+  {#if !bridge.initialized}
+    <img class="loading" src={loadingAnimationUrl} alt="Loading..." />
   {/if}
   <canvas id="canvas" tabindex="-1"></canvas>
 

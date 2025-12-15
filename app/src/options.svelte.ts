@@ -1,4 +1,4 @@
-import { type Palette, type EmulatorOptions } from "DMG-2025";
+import type { Palette, EmulatorOptions } from "DMG-2025";
 
 export const palettes: Record<string, Palette> = {
   LCD: [
