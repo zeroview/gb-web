@@ -84,7 +84,7 @@
   const formatOnscreenControls = (option: OnscreenControlsOption) => {
     switch (option) {
       case OnscreenControlsOption.Auto:
-        return "Auto";
+        return "Set automatically";
       case OnscreenControlsOption.Visible:
         return "Visible";
       case OnscreenControlsOption.Hidden:
@@ -94,6 +94,15 @@
 </script>
 
 <div class="menu-grid options-grid" tabindex="-1">
+  <p>On-screen controls:</p>
+  <button
+    onclick={() =>
+      (options.onScreenControls = OnscreenControlsOption.incremented(
+        options.onScreenControls,
+      ))}
+  >
+    {formatOnscreenControls(options.onScreenControls)}
+  </button>
   <p>Fast forward speed:</p>
   <MenuSlider
     bind:value={options.fast_forward_speed}
@@ -113,15 +122,6 @@
   />
 
   <p class="break"></p>
-  <p>On-screen controls:</p>
-  <button
-    onclick={() =>
-      (options.onScreenControls = OnscreenControlsOption.incremented(
-        options.onScreenControls,
-      ))}
-  >
-    {formatOnscreenControls(options.onScreenControls)}
-  </button>
   <p>Color palette:</p>
   <button onclick={swapPalette}>{paletteNames[options.paletteIndex]}</button>
   <p>Background brightness:</p>

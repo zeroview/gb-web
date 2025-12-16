@@ -3,6 +3,7 @@
   import loadIconUrl from "../assets/load.png";
   import browseIconUrl from "../assets/browse.png";
   import playIconUrl from "../assets/play.png";
+  import fullscreenIconUrl from "../assets/fullscreen.png";
 
   import { type Options } from "./options.svelte";
   import FilePicker from "./FilePicker.svelte";
@@ -22,6 +23,7 @@
     romLoaded,
     loadStateDisabled,
     stateSlot,
+    onToggleFullscreen,
   }: {
     options: Options;
     info: LoadedROMInfo;
@@ -35,6 +37,7 @@
     romLoaded: boolean;
     loadStateDisabled: boolean;
     stateSlot: number;
+    onToggleFullscreen: () => void;
   } = $props();
 
   const zipMimeTypes = [
@@ -107,5 +110,12 @@
       ]}
       labelFormatter={(value) => `${value}x`}
     />
+    <p class="break"></p>
+    <div class="button-row">
+      <button class="img-button" onclick={onToggleFullscreen}>
+        <img src={fullscreenIconUrl} alt="Fullscreen" />
+        <p>Toggle fullscreen</p>
+      </button>
+    </div>
   </div>
 {/if}

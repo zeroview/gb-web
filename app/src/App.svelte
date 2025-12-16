@@ -299,6 +299,14 @@
     return { y: sign * transitionLength, duration: transitionDuration };
   };
 
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen();
+    } else {
+      document.exitFullscreen?.();
+    }
+  };
+
   onMount(async () => {
     showInfoPopup("Downloading emulator...");
     await bridge.initialize(options);
@@ -482,6 +490,7 @@
             onSaveState={saveState}
             onLoadState={loadState}
             onSaveSlotChange={changeSaveSlot}
+            onToggleFullscreen={toggleFullscreen}
             romLoaded={hasRomBeenLoaded}
             {loadStateDisabled}
             {stateSlot}
