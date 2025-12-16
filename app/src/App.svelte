@@ -419,7 +419,13 @@
     >
       {#snippet menuButton(text: string, imgUrl: string, pageIndex: number)}
         <button
-          onclick={() => (currentPage = pageIndex)}
+          onclick={() => {
+            currentPage = pageIndex;
+            // Cancel rebinding when leaving input page
+            if (currentPage != 2) {
+              input.mappingToRebind = undefined;
+            }
+          }}
           style="{currentPage === pageIndex
             ? 'text-decoration-color: #d1d1d1;'
             : ''}}"
@@ -432,10 +438,10 @@
         </button>
       {/snippet}
       <div class="menu-sidebar">
-        <a href="https://github.com/zeroview/DMG-2025" class="info-button">
+        <div class="info-button">
           <img src={useLogoIcon ? iconUrl : logoUrl} alt="DMG-2025" />
-          <p>v. 1.0.0</p>
-        </a>
+          <a href="https://github.com/zeroview/DMG-2025"><p>v. 1.0.0</p></a>
+        </div>
         <div class="menu-sidebar-buttons">
           {@render menuButton("PLAY", playIconUrl, 0)}
           {@render menuButton("BROWSER", browseIconUrl, 1)}

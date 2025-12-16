@@ -42,6 +42,8 @@ body,
   max-height: 100%;
   touch-action: none;
   -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
+
+  overflow: hidden;
 }
 
 main {
@@ -116,7 +118,7 @@ main {
 
 .main-menu {
   gap: 2rem;
-  overflow-y: scroll;
+  overflow-y: auto;
   margin: auto 0;
 }
 
@@ -199,7 +201,13 @@ main {
   width: 15rem !important;
 }
 
-@media (max-width: 400px) {
+@media (max-width: 420px) {
+  .slider-row input {
+    width: 12rem !important;
+  }
+}
+
+@media (max-width: 380px) {
   .slider-row input {
     width: 10rem !important;
   }
@@ -238,9 +246,13 @@ main {
   gap: 0rem 1rem;
 }
 
+.input-grid button {
+  text-align: end;
+}
+
 @media (max-width: 500px) {
   .input-grid {
-    grid-template-columns: repeat(2, 8rem);
+    grid-template-columns: repeat(2, 10rem);
   }
 }
 

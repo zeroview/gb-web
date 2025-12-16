@@ -9,9 +9,9 @@
     {#if input.mappingToRebind == name}
       <button style="color:grey">[ Rebinding... ]</button>
     {:else}
-      <button onclick={() => (input.mappingToRebind = name)}
-        >{mappings[name]}</button
-      >
+      <button onclick={() => (input.mappingToRebind = name)}>
+        {mappings[name]}
+      </button>
     {/if}
   {/each}
 {/snippet}
