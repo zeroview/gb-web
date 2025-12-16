@@ -56,7 +56,7 @@
       const url = URL.createObjectURL(blob);
       const date = new Date().toISOString();
       downloadElement.href = url;
-      downloadElement.download = `DMG-2025-${date}.json`;
+      downloadElement.download = `gb-web-${date}.json`;
       // Start download
       downloadElement.click();
       // Remove URL object

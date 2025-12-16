@@ -167,7 +167,7 @@
     // Load saved RAM into emulator
     loadSavedRAM();
 
-    document.title = `${info.title} - DMG-2025`;
+    document.title = `${info.title} - gb-web`;
     console.info(
       `Loaded ROM file "${name}". Header: "${info.title}" Hash: ${info.hash}`,
     );
@@ -277,11 +277,11 @@
   let lastPage = 0;
 
   const getUseLogoIcon = () => {
-    return window.matchMedia("(max-width: 850px)").matches;
+    return window.matchMedia("(max-width: 400px)").matches;
   };
   let useLogoIcon = $state(getUseLogoIcon());
   const getUseSidebarIcons = () => {
-    return window.matchMedia("(max-width: 720px").matches;
+    return window.matchMedia("(max-width: 800px").matches;
   };
   let useSidebarIcons = $state(getUseSidebarIcons());
 
@@ -439,8 +439,8 @@
       {/snippet}
       <div class="menu-sidebar">
         <div class="info-button">
-          <img src={useLogoIcon ? iconUrl : logoUrl} alt="DMG-2025" />
-          <a href="https://github.com/zeroview/DMG-2025"><p>v. 1.0.0</p></a>
+          <img src={useLogoIcon ? iconUrl : logoUrl} alt="gb-web" />
+          <a href="https://github.com/zeroview/gb-web"><p>v. 1.0.0</p></a>
         </div>
         <div class="menu-sidebar-buttons">
           {@render menuButton("PLAY", playIconUrl, 0)}

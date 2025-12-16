@@ -1,4 +1,4 @@
-![DMG-2025](/app/assets/logo_large.png)
+![gb-web](/app/assets/banner.png)
 
 # Features
 - Modern and responsive web UI with pixelated aesthetic

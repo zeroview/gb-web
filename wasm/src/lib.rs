@@ -1,4 +1,4 @@
-use dmg_2025_core::*;
+use gb_web_core::*;
 use figment::{
     Figment,
     providers::{Format, Toml},

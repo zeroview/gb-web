@@ -1,7 +1,7 @@
 use wgpu::util::DeviceExt;
 
 use super::*;
-use dmg_2025_core::{DISPLAY_BUFFER_SIZE, DisplayBuffer};
+use gb_web_core::{DISPLAY_BUFFER_SIZE, DisplayBuffer};
 
 mod buffers;
 use buffers::*;

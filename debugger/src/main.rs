@@ -1,4 +1,4 @@
-use dmg_2025_core::CPU;
+use gb_web_core::CPU;
 use dotenv::dotenv;
 use std::{env, error, fs};
 

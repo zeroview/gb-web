@@ -1,5 +1,5 @@
 [package]
-name = "dmg_2025_wasm"
+name = "gb_web_wasm"
 version = "0.1.0"
 edition = "2024"
 
@@ -7,7 +7,7 @@ edition = "2024"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-dmg_2025_core = { path = "../core"}
+gb_web_core = { path = "../core"}
 env_logger = "0.11.6"
 console_error_panic_hook = "0.1.6"
 console_log = "1.0"

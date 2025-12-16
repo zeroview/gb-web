@@ -2,7 +2,7 @@ use cpal::{
     FromSample, SizedSample, Stream,
     traits::{DeviceTrait, HostTrait, StreamTrait},
 };
-use dmg_2025_core::AudioBufferConsumer;
+use gb_web_core::AudioBufferConsumer;
 use ringbuf::traits::Consumer;
 use std::sync::{Arc, RwLock};
 

@@ -1,4 +1,4 @@
-import type { ROMInfo, Proxy } from "DMG-2025";
+import type { ROMInfo, Proxy } from "wasm";
 import type { Options } from "./options.svelte";
 import { toEmulatorOptions } from "./options.svelte";
 
@@ -13,7 +13,7 @@ export default class EmulatorBridge {
   public showOnscreenControls: boolean = false;
 
   initialize = async (options: Options) => {
-    const wasm = await import("DMG-2025");
+    const wasm = await import("wasm");
     this.proxy = wasm.spawn_event_loop();
     this.updateOptions(options);
     this.setSpeed(options.speed);

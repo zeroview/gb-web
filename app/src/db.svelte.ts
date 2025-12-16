@@ -27,7 +27,7 @@ export class Database {
   private db: DexieDB;
 
   constructor() {
-    const db = new Dexie("DMG-2025") as DexieDB;
+    const db = new Dexie("gb-web") as DexieDB;
     db.version(1).stores({
       states: "++id, romHash, slot",
       saves: "++id, romHash"

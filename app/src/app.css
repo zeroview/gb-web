@@ -165,7 +165,7 @@ main {
   }
 }
 
-@media (max-width: 720px) {
+@media (max-width: 800px) {
   .menu-sidebar-buttons img {
     height: 2rem !important;
   }

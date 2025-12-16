@@ -1,5 +1,5 @@
 {
-  "name": "dmg-2025",
+  "name": "gb-web",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -33,7 +33,7 @@
   },
   "dependencies": {
     "dexie": "^4.2.1",
-    "DMG-2025": "file:wasm/pkg",
+    "wasm": "file:wasm/pkg",
     "fuse.js": "^7.1.0"
   }
 }

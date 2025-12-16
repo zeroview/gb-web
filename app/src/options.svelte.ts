@@ -1,4 +1,4 @@
-import type { Palette, EmulatorOptions } from "DMG-2025";
+import type { Palette, EmulatorOptions } from "wasm";
 
 export const palettes: Record<string, Palette> = {
   LCD: [
