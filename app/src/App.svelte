@@ -15,6 +15,7 @@
   import optionsIconUrl from "../assets/options.png";
   import pauseIconUrl from "../assets/pause.png";
   import fastForwardIconUrl from "../assets/fastforward.png";
+  import fastForwardingAnimationUrl from "../assets/fastforwarding.gif";
   import loadingAnimationUrl from "../assets/loading.gif";
 
   import MainPage from "./MainPage.svelte";
@@ -221,6 +222,12 @@
     }
   };
 
+  let fastForwarding = $state(false);
+  const toggleFastForward = () => {
+    fastForwarding = !fastForwarding;
+    bridge.setSpeed(fastForwarding ? options.fastForwardSpeed : options.speed);
+  };
+
   /// Input manager saves keybinds and calls callbacks on input
   let input = new InputManager();
   input.onPause(pause);
@@ -228,29 +235,24 @@
     bridge.updateInput(input, pressed);
   });
   input.onKeybindPressed((keybind, pressed) => {
+    if (!pressed) {
+      return;
+    }
     // Handle setting state slots 1-10
-    if (keybind.slice(0, 10) === "State slot" && pressed) {
+    if (keybind.slice(0, 10) === "State slot") {
       let slot = parseInt(keybind.slice(11));
       stateSlot = slot;
       showInfoPopup(`Selected state slot ${stateSlot}`);
     }
     switch (keybind) {
       case "Fast forward":
-        if (pressed) {
-          bridge.setSpeed(options.fast_forward_speed);
-        } else {
-          bridge.setSpeed(options.speed);
-        }
+        toggleFastForward();
         break;
       case "Save state":
-        if (pressed) {
-          saveState();
-        }
+        saveState();
         break;
       case "Load state":
-        if (pressed) {
-          loadState();
-        }
+        loadState();
         break;
     }
   });
@@ -511,13 +513,14 @@
     <button
       class="ui-button"
       style="right:0"
-      ontouchstart={() => bridge.setSpeed(options.fast_forward_speed)}
-      ontouchend={() => bridge.setSpeed(options.speed)}
-      onmousedown={() => bridge.setSpeed(options.fast_forward_speed)}
-      onmouseup={() => bridge.setSpeed(options.speed)}
+      onclick={toggleFastForward}
       transition:fade={{ duration: options.uiTransitions ? 100 : 0 }}
     >
-      <img src={fastForwardIconUrl} alt="Fast-forward" draggable="false" />
+      <img
+        src={fastForwarding ? fastForwardingAnimationUrl : fastForwardIconUrl}
+        alt="Fast-forward"
+        draggable="false"
+      />
     </button>
   {/if}
 </main>

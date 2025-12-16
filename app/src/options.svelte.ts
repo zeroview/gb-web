@@ -41,7 +41,7 @@ export namespace OnscreenControlsOption {
 export const defaultOptions = {
   paletteIndex: 0,
   speed: 1,
-  fast_forward_speed: 2,
+  fastForwardSpeed: 2,
   fpsTarget: 10,
   volume: 100,
   onScreenControls: OnscreenControlsOption.Auto,

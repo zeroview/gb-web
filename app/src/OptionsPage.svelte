@@ -105,7 +105,7 @@
   </button>
   <p>Fast forward speed:</p>
   <MenuSlider
-    bind:value={options.fast_forward_speed}
+    bind:value={options.fastForwardSpeed}
     values={[
       0.01, 0.05, 0.1, 0.3, 0.5, 0.7, 0.8, 0.9, 1, 1.1, 1.3, 1.5, 2, 3, 5, 10,
       20,
