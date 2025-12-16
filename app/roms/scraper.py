@@ -21,10 +21,23 @@ def get(url):
     get_count += 1
     return response.json()
 
-gb_tags = ["gbcompo21", "event:gbcompo23", "gb-showdown-22"]
+# ROM tags that also imply ROM works on Game Boy
+gb_tags = ["gbcompo21", "event:gbcompo23", "event:gbcompo25", "gb-showdown-22"]
+# URLs for scraping
 entry_url_template = "https://api.github.com/repos/gbdev/database/contents/entries/"
-entry_tree_url = "https://api.github.com/repos/gbdev/database/git/trees/b1eccaeb0221c97db160354dfe2e8b66ac5d3710"
-entries = get(entry_tree_url)["tree"]
+tree_url_template = "https://api.github.com/repos/gbdev/database/git/trees/";
+latest_commit_url = "https://api.github.com/repos/gbdev/database/commits/master";
+
+# Get the tree url of the latest commit
+latest_sha = get(latest_commit_url)["sha"];
+repo_tree_url = tree_url_template + latest_sha;
+repo_files = get(repo_tree_url)["tree"]
+# Get entries folder
+entries_folder = next(
+    (file for file in repo_files if file['path'] == "entries")
+)
+# Get list of entries
+entries = get(entries_folder["url"])["tree"]
 roms = {}
 
 for entry in entries:
@@ -90,8 +103,10 @@ for entry in entries:
     print(f'Found ROM "{rom_info["title"]}": {game}')
 
 filename = "homebrewhub.json"
+# Sort ROMs by title, case-insensitively
+sorted_roms = dict(sorted(roms.items(), key=lambda item: item[0].lower()))
 # Save list to JSON file
 with open(filename, 'w', encoding='utf-8') as f:
-    json.dump(roms, f, indent=2, ensure_ascii=False, sort_keys=True)
+    json.dump(sorted_roms, f, indent=2, ensure_ascii=False)
 
 print(f"Saved {len(roms)} ROMs to {filename}, used {get_count} API requests (out of 5000 per hour)")
