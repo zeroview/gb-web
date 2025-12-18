@@ -24,9 +24,24 @@ Feel free to open issues: I will try my best to fix them or help with any proble
 Pull requests are even more welcome, and I will be sure to check them out!
 
 ## Local installation
-- Install dependencies:
-  - [`npm`](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm) (or another package manager of your choice)
-  - [`rustc`](https://rust-lang.org/tools/install/)  and [`cargo`](https://rust-lang.org/tools/install/)
+- Install development tools:
+  - `node` and [`npm`](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm) (or another package manager of your choice)
+  - `rustc`, `cargo` and a C compiler ([further instructions](https://doc.rust-lang.org/book/ch01-01-installation.html))
   - [`wasm-pack`](https://drager.github.io/wasm-pack/installer/)
-- Run development server with `npm run dev`
-- Create production build with `npm run build`
+- Install WASM toolchain for Rust:
+  ```console
+  $ rustup target add wasm32-unknown-unknown --toolchain stable
+  ```
+- Install dependencies:
+  ```console
+  $ npm install
+  ```
+### Running
+- Run development server:
+  ```console
+  $ npm run dev
+  ```
+- Create production build:
+  ```console
+  $ npm run build
+  ```
