@@ -3,6 +3,7 @@ import wasm from "vite-plugin-wasm";
 import topLevelAwait from "vite-plugin-top-level-await";
 import wasmPackWatchPlugin from "vite-plugin-wasm-pack-watcher";
 import { svelte } from '@sveltejs/vite-plugin-svelte'
+import pkg from './package.json';
 
 export default defineConfig({
   build: {
@@ -13,5 +14,8 @@ export default defineConfig({
   plugins: [svelte(), topLevelAwait(), wasm(), wasmPackWatchPlugin({
     buildCommand: "wasm-pack build wasm --dev"
   })],
-  publicDir: "app/public"
+  publicDir: "app/public",
+  define: {
+    "import.meta.env.PACKAGE_VERSION": JSON.stringify(pkg.version)
+  }
 });

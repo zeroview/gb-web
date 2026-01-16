@@ -35,6 +35,9 @@
   } from "./options.svelte";
   import { onMount, tick } from "svelte";
 
+  // Import the version from package.json
+  const version = import.meta.env.PACKAGE_VERSION;
+
   // Handler initialization
   let db = new Database();
   let bridge = new EmulatorBridge();
@@ -450,7 +453,7 @@
       <div class="menu-sidebar">
         <div class="info-button">
           <img src={useLogoIcon ? iconUrl : logoUrl} alt="gb-web" />
-          <a href="https://github.com/zeroview/gb-web"><p>v. 1.0.0</p></a>
+          <a href="https://github.com/zeroview/gb-web"><p>v. {version}</p></a>
         </div>
         <div class="menu-sidebar-buttons">
           {@render menuButton("PLAY", playIconUrl, 0)}
