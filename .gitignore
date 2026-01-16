@@ -40,3 +40,4 @@ wasm-pack.log
 *.njsproj
 *.sln
 *.sw?
+.gemini/
