@@ -1,7 +1,12 @@
-# Scrapes entries from Homebrew Hub's (https://hh.gbdev.io/)
-# GitHub database and compiles them into a JSON file
-# Using GitHub API (reasonably) requires a personal access token 
-# without any additional permissions
+# This script scrapes entries from Homebrew Hub's (https://hh.gbdev.io/) GitHub database and compiles them into a JSON file
+#
+# How to run:
+#   1. Create a GitHub personal access token without additional permissions:
+#      https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens#creating-a-fine-grained-personal-access-token
+#   2. Create a .env file in this directory with the key GITHUB_TOKEN
+#   3. Run "pip install requests dotenv" to install dependencies
+#   4. Run this script in this directory. The homebrewhub.json file should be updated.
+# 
 
 import requests
 from dotenv import dotenv_values

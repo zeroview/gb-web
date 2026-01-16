@@ -44,4 +44,5 @@ Pull requests are even more welcome, and I will be sure to check them out!
 - Create production build:
   ```console
   $ npm run build
-  ```
+### Updating ROM metadata
+See instructions in [the scraper script](app/roms/scraper.py)
