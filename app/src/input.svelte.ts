@@ -78,11 +78,6 @@ export default class InputManager {
   }
 
   handleKey = (event: KeyboardEvent, pressed: boolean) => {
-    // Ignore inputs that were probably meant as shortcuts
-    if (event.altKey || event.shiftKey || event.ctrlKey) {
-      return;
-    }
-
     let key = this.getKey(event);
 
     // Disable input when keyboard is focused on something (probably a textbox)
